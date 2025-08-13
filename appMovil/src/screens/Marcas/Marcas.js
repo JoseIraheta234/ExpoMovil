@@ -152,6 +152,14 @@ const Marcas = ({ navigation }) => {
         onAddPress={handleAddPress}
       />
 
+      {/* Texto informativo */}
+      <View style={styles.infoContainer}>
+        <Text style={styles.infoText}>
+          Actualiza tu gama de marcas sin complicaciones.
+        </Text>
+        <Text style={styles.allBrandsText}>Todas las marcas</Text>
+      </View>
+
       <View style={styles.content}>
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -163,8 +171,10 @@ const Marcas = ({ navigation }) => {
             data={marcas}
             renderItem={renderMarcaCard}
             keyExtractor={(item) => item.id.toString()}
+            numColumns={2}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContainer}
+            columnWrapperStyle={styles.row}
             ListEmptyComponent={renderEmptyState}
           />
         )}
@@ -266,12 +276,34 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 40,
   },
+  infoContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+    backgroundColor: '#F8F9FA',
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  allBrandsText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C3E50',
+  },
   content: {
     flex: 1,
   },
   listContainer: {
+    paddingHorizontal: 10,
     paddingVertical: 8,
     flexGrow: 1,
+  },
+  row: {
+    justifyContent: 'space-around',
+    paddingHorizontal: 6,
   },
   loadingContainer: {
     flex: 1,

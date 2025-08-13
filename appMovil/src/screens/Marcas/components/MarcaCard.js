@@ -10,8 +10,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 const MarcaCard = ({ marca, onEdit, onDelete }) => {
   return (
-    <View style={styles.card}>
-      <View style={styles.logoContainer}>
+    <View style={styles.cardContainer}>
+      {/* Logo grande */}
+      <View style={styles.logoSection}>
         <Image
           source={{ uri: marca.logo }}
           style={styles.logo}
@@ -19,7 +20,8 @@ const MarcaCard = ({ marca, onEdit, onDelete }) => {
         />
       </View>
       
-      <View style={styles.content}>
+      {/* Nombre y botones */}
+      <View style={styles.bottomSection}>
         <Text style={styles.nombre}>{marca.nombre}</Text>
         
         <View style={styles.actions}>
@@ -28,7 +30,7 @@ const MarcaCard = ({ marca, onEdit, onDelete }) => {
             onPress={() => onEdit(marca)}
             activeOpacity={0.7}
           >
-            <Ionicons name="pencil" size={16} color="#4A90E2" />
+            <Ionicons name="pencil" size={14} color="#4A90E2" />
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -36,7 +38,7 @@ const MarcaCard = ({ marca, onEdit, onDelete }) => {
             onPress={() => onDelete(marca)}
             activeOpacity={0.7}
           >
-            <Ionicons name="trash" size={16} color="#E74C3C" />
+            <Ionicons name="trash" size={14} color="#E74C3C" />
           </TouchableOpacity>
         </View>
       </View>
@@ -45,12 +47,11 @@ const MarcaCard = ({ marca, onEdit, onDelete }) => {
 };
 
 const styles = StyleSheet.create({
-  card: {
+  cardContainer: {
+    width: '47%', // Para que quepan 2 por fila
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    padding: 16,
+    margin: 6,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -59,42 +60,42 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
-  logoContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: '#F8F9FA',
-    justifyContent: 'center',
+  logoSection: {
+    backgroundColor: '#F8F9FA', // Fondo claro para los logos
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     alignItems: 'center',
-    marginRight: 16,
+    justifyContent: 'center',
+    minHeight: 80,
   },
   logo: {
-    width: 45,
-    height: 45,
+    width: 60,
+    height: 40,
+    // Sin tintColor para mostrar los logos con sus colores originales
   },
-  content: {
-    flex: 1,
+  bottomSection: {
+    padding: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   nombre: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#2C3E50',
     flex: 1,
   },
   actions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   actionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,

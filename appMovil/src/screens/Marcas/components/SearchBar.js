@@ -14,7 +14,7 @@ const SearchBar = ({ searchQuery, onSearchChange, onAddPress }) => {
         <Ionicons name="search" size={20} color="#8E8E93" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Buscar marcas o complicaciones..."
+          placeholder="Buscar"
           placeholderTextColor="#8E8E93"
           value={searchQuery}
           onChangeText={onSearchChange}

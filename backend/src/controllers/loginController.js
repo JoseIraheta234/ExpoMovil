@@ -1,5 +1,5 @@
 import clientsModel from "../models/Clientes.js";
-import empleadosModel from "../models/Empleados.js";
+import empleadosModel from "../models/Employees.js";
 import bcryptjs from "bcryptjs";
 import jsonwebtoken from "jsonwebtoken";
 import { config } from "../config.js";

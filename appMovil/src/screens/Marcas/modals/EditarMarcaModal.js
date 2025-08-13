@@ -6,10 +6,9 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Alert,
   Image,
-  ScrollView
+  Animated
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -17,6 +16,9 @@ const EditarMarcaModal = ({ visible, onClose, onSave, marca }) => {
   const [nombre, setNombre] = useState('');
   const [logo, setLogo] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  const scaleAnim = new Animated.Value(0);
+  const opacityAnim = new Animated.Value(0);
 
   // Llenar los campos cuando se selecciona una marca para editar
   useEffect(() => {
@@ -25,6 +27,26 @@ const EditarMarcaModal = ({ visible, onClose, onSave, marca }) => {
       setLogo(marca.logo || '');
     }
   }, [marca]);
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        })
+      ]).start();
+    } else {
+      scaleAnim.setValue(0);
+      opacityAnim.setValue(0);
+    }
+  }, [visible]);
 
   const handleSave = async () => {
     if (!nombre.trim()) {
@@ -43,7 +65,6 @@ const EditarMarcaModal = ({ visible, onClose, onSave, marca }) => {
     
     if (result.success) {
       onClose();
-      // El modal de éxito se manejará desde el componente padre
     } else {
       Alert.alert('Error', 'No se pudo actualizar la marca');
     }
@@ -81,180 +102,133 @@ const EditarMarcaModal = ({ visible, onClose, onSave, marca }) => {
     }
   };
 
-  const resetForm = () => {
-    setNombre('');
-    setLogo('');
-  };
-
-  // Limpiar formulario cuando se cierra el modal
-  useEffect(() => {
-    if (!visible) {
-      resetForm();
-    }
-  }, [visible]);
-
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
+      transparent={true}
+      animationType="none"
       onRequestClose={handleCancel}
     >
-      <SafeAreaView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={handleCancel}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Marcas</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+      <View style={styles.overlay}>
+        <Animated.View 
+          style={[
+            styles.modalContainer,
+            {
+              transform: [{ scale: scaleAnim }],
+              opacity: opacityAnim,
+            }
+          ]}
+        >
+          {/* Título */}
+          <Text style={styles.title}>Editar marca</Text>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Título del formulario */}
-          <View style={styles.formHeader}>
-            <Text style={styles.formTitle}>Editar marca</Text>
+          {/* Campo Logo de marca */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Logo de marca</Text>
+            <TextInput
+              style={styles.input}
+              value={logo}
+              onChangeText={setLogo}
+              placeholder="URL del logo"
+              placeholderTextColor="#8E8E93"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
           </View>
 
-          {/* Formulario */}
-          <View style={styles.form}>
-            {/* Campo Logo */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Logo de marca</Text>
-              <TextInput
-                style={styles.input}
-                value={logo}
-                onChangeText={setLogo}
-                placeholder="URL del logo (opcional)"
-                placeholderTextColor="#8E8E93"
-                autoCapitalize="none"
-                autoCorrect={false}
+          {/* Vista previa del logo */}
+          <View style={styles.logoPreview}>
+            {(logo || marca?.logo) ? (
+              <Image
+                source={{ uri: logo || marca?.logo }}
+                style={styles.logoImage}
+                resizeMode="contain"
+                onError={() => {
+                  Alert.alert('Error', 'No se pudo cargar la imagen del logo');
+                }}
               />
-            </View>
-
-            {/* Vista previa del logo actual */}
-            {(logo || marca?.logo) && (
-              <View style={styles.logoPreview}>
-                <Image
-                  source={{ uri: logo || marca?.logo }}
-                  style={styles.logoImage}
-                  resizeMode="contain"
-                  onError={() => {
-                    Alert.alert('Error', 'No se pudo cargar la imagen del logo');
-                  }}
-                />
-              </View>
-            )}
-
-            {/* Campo Nombre */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nombre</Text>
-              <TextInput
-                style={styles.input}
-                value={nombre}
-                onChangeText={setNombre}
-                placeholder="Nombre de la marca"
-                placeholderTextColor="#8E8E93"
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
-            </View>
-
-            {/* Icono de upload */}
-            <View style={styles.uploadSection}>
+            ) : (
               <View style={styles.uploadIcon}>
                 <Ionicons name="cloud-upload-outline" size={40} color="#8E8E93" />
               </View>
-            </View>
+            )}
           </View>
-        </ScrollView>
 
-        {/* Botones */}
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, styles.cancelButton]}
-            onPress={handleCancel}
-            activeOpacity={0.8}
-            disabled={loading}
-          >
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
-          </TouchableOpacity>
+          {/* Campo Nombre */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Nombre</Text>
+            <TextInput
+              style={styles.input}
+              value={nombre}
+              onChangeText={setNombre}
+              placeholder="Nombre de la marca"
+              placeholderTextColor="#8E8E93"
+              autoCapitalize="words"
+              autoCorrect={false}
+            />
+          </View>
 
-          <TouchableOpacity
-            style={[styles.button, styles.saveButton]}
-            onPress={handleSave}
-            activeOpacity={0.8}
-            disabled={loading}
-          >
-            <Text style={styles.saveButtonText}>
-              {loading ? 'Actualizando...' : 'Actualizar'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+          {/* Botones */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={handleCancel}
+              activeOpacity={0.8}
+              disabled={loading}
+            >
+              <Text style={styles.cancelButtonText}>Cancelar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.saveButton]}
+              onPress={handleSave}
+              activeOpacity={0.8}
+              disabled={loading}
+            >
+              <Text style={styles.saveButtonText}>
+                {loading ? 'Actualizando...' : 'Actualizar'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
-  },
-  header: {
-    backgroundColor: '#4A90E2',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 32,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    flex: 1,
-    textAlign: 'center',
-    marginHorizontal: 16,
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  content: {
-    flex: 1,
-  },
-  formHeader: {
+  modalContainer: {
     backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 24,
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E1E5E9',
+    width: '90%',
+    maxWidth: 350,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  formTitle: {
+  title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#2C3E50',
+    color: '#4A90E2',
     textAlign: 'center',
-  },
-  form: {
-    backgroundColor: '#FFFFFF',
-    marginTop: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 24,
+    marginBottom: 20,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
@@ -266,50 +240,39 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E1E5E9',
     borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
     color: '#2C3E50',
     backgroundColor: '#FFFFFF',
   },
   logoPreview: {
     alignItems: 'center',
-    marginBottom: 20,
-    padding: 16,
+    marginVertical: 16,
+    paddingVertical: 20,
     backgroundColor: '#F8F9FA',
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E1E5E9',
   },
   logoImage: {
-    width: 80,
-    height: 80,
-  },
-  uploadSection: {
-    alignItems: 'center',
-    marginTop: 20,
+    width: 60,
+    height: 60,
   },
   uploadIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#F8F9FA',
+    width: 60,
+    height: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#E1E5E9',
-    borderStyle: 'dashed',
   },
   buttonContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E1E5E9',
     gap: 12,
+    marginTop: 20,
   },
   button: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -322,12 +285,12 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   saveButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
 });
