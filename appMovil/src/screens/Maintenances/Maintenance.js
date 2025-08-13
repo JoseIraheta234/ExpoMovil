@@ -11,8 +11,8 @@ import {
   Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import MaintenanceCard from '../components/MaintenanceCard';
-import { useFetchMaintenances } from '../hooks/useFetchMaintenances';
+import MaintenanceCard from '../Maintenances/components/maintenanceCard';
+import { useFetchMaintenances } from '../Maintenances/hooks/useFetchMaintenances';
 
 const MaintenanceScreen = ({ navigation }) => {
   const [searchText, setSearchText] = useState('');

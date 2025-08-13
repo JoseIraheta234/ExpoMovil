@@ -11,25 +11,18 @@ import {
 const HomeScreen = ({ navigation }) => {
   const menuButtons = [
     {
-      title: 'Perfil',
-      subtitle: 'Ver y editar tu perfil',
-      screen: 'Profile',
-      color: '#4CAF50',
-      icon: '👤'
+      title: 'Marcas',
+      subtitle: 'Gestionar marcas de vehículos',
+      screen: 'Marcas',
+      color: '#4A90E2',
+      icon: '🚗'
     },
     {
-      title: 'Configuración',
-      subtitle: 'Ajustes de la aplicación',
-      screen: 'Settings',
-      color: '#FF9800',
-      icon: '⚙️'
-    },
-    {
-      title: 'Acerca de',
-      subtitle: 'Información de la app',
-      screen: 'About',
-      color: '#9C27B0',
-      icon: 'ℹ️'
+      title: 'Mantenimientos',
+      subtitle: 'Control de mantenimientos',
+      screen: 'Maintenance',
+      color: '#E74C3C',
+      icon: '🔧'
     }
   ];
 

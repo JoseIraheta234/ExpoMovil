@@ -4,10 +4,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 
 // Importar las pantallas
-import HomeScreen from './src/screens/HomeScreen';
-import ProfileScreen from './src/screens/HomeScreen';
-import SettingsScreen from './src/screens/HomeScreen';
-import AboutScreen from './src/screens/HomeScreen';
+import HomeScreen from '../appMovil/src/screens/HomeScreen';
+import Marcas from './src/screens/Marcas/Marcas';
+import MaintenanceScreen from './src/screens/Maintenances/Maintenance';
 
 const Stack = createNativeStackNavigator();
 
@@ -38,19 +37,18 @@ export default function App() {
           }} 
         />
         <Stack.Screen 
-          name="Profile" 
-          component={ProfileScreen} 
-          options={{ title: 'Perfil' }} 
+          name="Marcas" 
+          component={Marcas} 
+          options={{ 
+            headerShown: false // La pantalla Marcas tiene su propio header
+          }} 
         />
         <Stack.Screen 
-          name="Settings" 
-          component={SettingsScreen} 
-          options={{ title: 'Configuración' }} 
-        />
-        <Stack.Screen 
-          name="About" 
-          component={AboutScreen} 
-          options={{ title: 'Acerca de' }} 
+          name="Maintenance" 
+          component={MaintenanceScreen} 
+          options={{ 
+            headerShown: false // La pantalla Maintenance tiene su propio header
+          }} 
         />
       </Stack.Navigator>
     </NavigationContainer>
