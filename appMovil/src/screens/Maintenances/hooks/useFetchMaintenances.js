@@ -14,7 +14,6 @@ export const useFetchMaintenances = () => {
       setLoading(true);
       setError(null);
 
-      console.log('Fetching maintenances from:', `${API_BASE_URL}/maintenances`);
       
       const response = await fetch(`${API_BASE_URL}/maintenances`, {
         method: 'GET',
@@ -26,7 +25,6 @@ export const useFetchMaintenances = () => {
         timeout: 10000,
       });
 
-      console.log('Response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -35,7 +33,6 @@ export const useFetchMaintenances = () => {
       }
 
       const result = await response.json();
-      console.log('Response data:', result);
 
       if (result.success) {
         setMaintenances(result.data || []);
@@ -73,7 +70,6 @@ export const useFetchMaintenances = () => {
     try {
       setError(null);
 
-      console.log('Creating maintenance:', maintenanceData);
 
       const response = await fetch(`${API_BASE_URL}/maintenances`, {
         method: 'POST',
