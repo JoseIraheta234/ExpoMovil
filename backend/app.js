@@ -16,7 +16,7 @@ import employeesRoutes from "./src/routes/Empleados.js";
 import vehiclesRoutes from "./src/routes/vehicles.js";
 import reservationsRoutes from "./src/routes/reservas.js";
 import contractsRoutes from "./src/routes/contratos.js";
-import maintenancesRoutes from "./src/routes/mantenimientos.js";
+import maintenancesRoutes from "./src/routes/maintenances.js";
 import brandsRoutes from "./src/routes/brands.js";
 
 // Rutas utilitarias y de comunicación
