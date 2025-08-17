@@ -5,21 +5,14 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
+  Image,
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const { height } = Dimensions.get('window');
 
-export default function ConfirmationModal({ 
-  visible, 
-  title = "¿Estás seguro?",
-  message, 
-  onClose, 
-  onConfirm,
-  confirmText = "Sí",
-  cancelText = "No"
-}) {
+export default function ConfirmDeleteModal({ visible, brand, onClose, onConfirm }) {
   return (
     <Modal
       visible={visible}
@@ -31,7 +24,7 @@ export default function ConfirmationModal({
         <View style={styles.modalContainer}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.title}>¿Estás seguro?</Text>
             <TouchableOpacity
               style={styles.closeButton}
               onPress={onClose}
@@ -51,9 +44,23 @@ export default function ConfirmationModal({
 
             <Text style={styles.subtitle}>¿Estás seguro?</Text>
             
-            <Text style={styles.message}>
-              {message || "Esta acción requiere confirmación para continuar."}
+            <Text style={styles.description}>
+              ¿Estás seguro de que quieres eliminar esta marca? Esta acción no se puede deshacer.
             </Text>
+
+            {/* Brand Preview */}
+            <View style={styles.brandPreview}>
+              <View style={styles.logoContainer}>
+                {brand?.logo ? (
+                  <Image source={{ uri: brand.logo }} style={styles.logo} />
+                ) : (
+                  <View style={styles.logoPlaceholder}>
+                    <Text style={styles.logoText}>{brand?.name?.charAt(0)}</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.brandName}>{brand?.name}</Text>
+            </View>
           </View>
 
           {/* Footer Buttons */}
@@ -62,14 +69,14 @@ export default function ConfirmationModal({
               style={[styles.button, styles.cancelButton]}
               onPress={onClose}
             >
-              <Text style={styles.cancelButtonText}>{cancelText}</Text>
+              <Text style={styles.cancelButtonText}>Cancelar</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.button, styles.confirmButton]}
               onPress={onConfirm}
             >
-              <Text style={styles.confirmButtonText}>{confirmText}</Text>
+              <Text style={styles.confirmButtonText}>Sí, eliminar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -121,7 +128,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F39C12',
+    backgroundColor: '#4A90E2',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -132,12 +139,51 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 15,
   },
-  message: {
+  description: {
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 20,
+  },
+  brandPreview: {
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    padding: 20,
+    borderRadius: 8,
+    width: '100%',
+    marginBottom: 20,
+  },
+  logoContainer: {
+    width: 50,
+    height: 50,
+    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 50,
+    height: 50,
+    resizeMode: 'contain',
+  },
+  logoPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#E5E5E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  brandName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
   },
   footer: {
     flexDirection: 'row',

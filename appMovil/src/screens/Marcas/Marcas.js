@@ -4,357 +4,212 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
-  FlatList,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  StatusBar
+  ScrollView,
+  Dimensions,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useMarcas } from './hooks/useMarcas';
-import MarcaCard from './components/MarcaCard';
-import SearchBar from './components/SearchBar';
-import AgregarMarcaModal from './modals/AgregarMarcaModal';
-import EditarMarcaModal from './modals/EditarMarcaModal';
-import EliminarMarcaModal from './modals/EliminarMarcaModal';
-import SuccessModal from './modals/SuccessModal';
-import SuccessUpdateModal from './modals/SuccessUpdateModal';
-import SuccessDeleteModal from './modals/SuccessDeleteModal';
-import ConfirmationModal from './modals/ConfirmationModal';
+import BrandCard from '../Marcas/components/BrandCard';
+import AddBrandModal from '../Marcas/modals/AddBrandModal';
+import EditBrandModal from '../Marcas/modals/EditBrandModal';
+import DeleteBrandModal from '../Marcas/modals/DeleteBrandModal';
+import SuccessModal from '../Marcas/modals/SuccessModal';
+import ConfirmDeleteModal from '../Marcas/modals/ComfirmDeleteModal';
+import { useMarcas } from '../Marcas/hooks/useMarcas';
 
-const Marcas = ({ navigation }) => {
-  const {
-    marcas,
-    loading,
-    error,
-    searchQuery,
-    setSearchQuery,
-    agregarMarca,
-    editarMarca,
-    eliminarMarca
-  } = useMarcas();
+const { width, height } = Dimensions.get('window');
 
-  // Estados para los modals
-  const [showAgregarModal, setShowAgregarModal] = useState(false);
-  const [showEditarModal, setShowEditarModal] = useState(false);
-  const [showEliminarModal, setShowEliminarModal] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showSuccessUpdateModal, setShowSuccessUpdateModal] = useState(false);
-  const [showSuccessDeleteModal, setShowSuccessDeleteModal] = useState(false);
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+export default function Marcas() {
+  const { marcas, addMarca, updateMarca, deleteMarca } = useMarcas();
+  const [modalType, setModalType] = useState(null);
+  const [selectedBrand, setSelectedBrand] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
-  const [confirmationData, setConfirmationData] = useState(null);
-  const [selectedMarca, setSelectedMarca] = useState(null);
 
-  const handleEdit = (marca) => {
-    setSelectedMarca(marca);
-    setShowEditarModal(true);
+  const openModal = (type, brand = null) => {
+    setModalType(type);
+    setSelectedBrand(brand);
   };
 
-  const handleDelete = (marca) => {
-    setSelectedMarca(marca);
-    setShowEliminarModal(true);
+  const closeModal = () => {
+    setModalType(null);
+    setSelectedBrand(null);
   };
 
-  const handleConfirmDelete = async (id) => {
-    const result = await eliminarMarca(id);
-    setShowEliminarModal(false);
+  const handleAddBrand = (brandData) => {
+    addMarca(brandData);
+    closeModal();
+    setSuccessMessage('¡Marca guardada!');
+    setModalType('success');
+  };
+
+  const handleEditBrand = (brandData) => {
+    updateMarca(selectedBrand.id, brandData);
+    closeModal();
+    setSuccessMessage('¡Se ha actualizado la marca!');
+    setModalType('success');
+  };
+
+  const handleDeleteBrand = () => {
+    deleteMarca(selectedBrand.id);
+    closeModal();
+    setSuccessMessage('¡Se ha eliminado la marca!');
+    setModalType('success');
+  };
+
+  const renderCards = () => {
+    const cards = [];
     
-    if (result.success) {
-      setShowSuccessDeleteModal(true);
-    } else {
-      Alert.alert('Error', 'No se pudo eliminar la marca');
-    }
-  };
-
-  const handleAddPress = () => {
-    setShowAgregarModal(true);
-  };
-
-  const handleSaveMarca = async (nuevaMarca) => {
-    const result = await agregarMarca(nuevaMarca);
-    if (result.success) {
-      setSuccessMessage('Se ha agregado tu nueva marca en el sistema');
-      setShowSuccessModal(true);
-      return { success: true };
-    } else {
-      return { success: false, error: result.error };
-    }
-  };
-
-  const handleUpdateMarca = async (id, marcaActualizada) => {
-    const result = await editarMarca(id, marcaActualizada);
-    if (result.success) {
-      setShowSuccessUpdateModal(true);
-      return { success: true };
-    } else {
-      return { success: false, error: result.error };
-    }
-  };
-
-  const renderMarcaCard = ({ item }) => (
-    <MarcaCard
-      marca={item}
-      onEdit={handleEdit}
-      onDelete={handleDelete}
-    />
-  );
-
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="car" size={60} color="#8E8E93" />
-      <Text style={styles.emptyText}>
-        {searchQuery ? 'No se encontraron marcas' : 'No hay marcas disponibles'}
-      </Text>
-      <Text style={styles.emptySubtext}>
-        {searchQuery ? 'Intenta con otro término de búsqueda' : 'Agrega una nueva marca para comenzar'}
-      </Text>
-    </View>
-  );
-
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation?.goBack()}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
-      <Text style={styles.headerTitle}>Marcas</Text>
-      <View style={styles.headerSpacer} />
-    </View>
-  );
-
-  if (error) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#4A90E2" />
-        {renderHeader()}
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={60} color="#E74C3C" />
-          <Text style={styles.errorText}>Error al cargar las marcas</Text>
-          <Text style={styles.errorSubtext}>{error}</Text>
+    for (let i = 0; i < marcas.length; i += 2) {
+      cards.push(
+        <View key={`row-${i}`} style={styles.cardRow}>
+          <BrandCard
+            brand={marcas[i]}
+            onEdit={() => openModal('edit', marcas[i])}
+            onDelete={() => openModal('delete', marcas[i])}
+          />
+          {marcas[i + 1] && (
+            <BrandCard
+              brand={marcas[i + 1]}
+              onEdit={() => openModal('edit', marcas[i + 1])}
+              onDelete={() => openModal('delete', marcas[i + 1])}
+            />
+          )}
         </View>
-      </SafeAreaView>
-    );
-  }
+      );
+    }
+
+    return cards;
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#4A90E2" />
+      <StatusBar barStyle="light-content" backgroundColor="#5B9BD5" />
       
-      {renderHeader()}
-      
-      <SearchBar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onAddPress={handleAddPress}
-      />
-
-      {/* Texto informativo */}
-      <View style={styles.infoContainer}>
-        <Text style={styles.infoText}>
-          Actualiza tu gama de marcas sin complicaciones.
-        </Text>
-        <Text style={styles.allBrandsText}>Todas las marcas</Text>
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Marcas</Text>
+        </View>
+        <TouchableOpacity style={styles.menuButton}>
+          <Ionicons name="menu" size={24} color="white" />
+        </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4A90E2" />
-            <Text style={styles.loadingText}>Cargando marcas...</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={marcas}
-            renderItem={renderMarcaCard}
-            keyExtractor={(item) => item.id.toString()}
-            numColumns={2}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContainer}
-            columnWrapperStyle={styles.row}
-            ListEmptyComponent={renderEmptyState}
-          />
-        )}
+      <View style={styles.searchContainer}>
+        <Text style={styles.searchText}>Accede a tu catálogo de marcas aquí</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => openModal('add')}
+        >
+          <Ionicons name="add" size={24} color="#5B9BD5" />
+        </TouchableOpacity>
       </View>
 
-      {/* Modals */}
-      <AgregarMarcaModal
-        visible={showAgregarModal}
-        onClose={() => setShowAgregarModal(false)}
-        onSave={handleSaveMarca}
-      />
+      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        <View style={styles.cardsContainer}>
+          {renderCards()}
+        </View>
+      </ScrollView>
 
-      <EditarMarcaModal
-        visible={showEditarModal}
-        onClose={() => {
-          setShowEditarModal(false);
-          setSelectedMarca(null);
-        }}
-        onSave={handleUpdateMarca}
-        marca={selectedMarca}
-      />
+      {modalType === 'add' && (
+        <AddBrandModal
+          visible={true}
+          onClose={closeModal}
+          onConfirm={handleAddBrand}
+        />
+      )}
 
-      <EliminarMarcaModal
-        visible={showEliminarModal}
-        onClose={() => {
-          setShowEliminarModal(false);
-          setSelectedMarca(null);
-        }}
-        onConfirm={handleConfirmDelete}
-        marca={selectedMarca}
-      />
+      {modalType === 'edit' && (
+        <EditBrandModal
+          visible={true}
+          brand={selectedBrand}
+          onClose={closeModal}
+          onConfirm={handleEditBrand}
+        />
+      )}
 
-      <SuccessModal
-        visible={showSuccessModal}
-        onClose={() => setShowSuccessModal(false)}
-        title="¡Marca guardada!"
-        message={successMessage}
-      />
+      {modalType === 'delete' && (
+        <ConfirmDeleteModal
+          visible={true}
+          brand={selectedBrand}
+          onClose={closeModal}
+          onConfirm={handleDeleteBrand}
+        />
+      )}
 
-      <SuccessUpdateModal
-        visible={showSuccessUpdateModal}
-        onClose={() => setShowSuccessUpdateModal(false)}
-        message="¡Se ha actualizado la marca!"
-      />
-
-      <SuccessDeleteModal
-        visible={showSuccessDeleteModal}
-        onClose={() => setShowSuccessDeleteModal(false)}
-        message="¡Se ha eliminado la marca!"
-      />
-
-      <ConfirmationModal
-        visible={showConfirmationModal}
-        onClose={() => setShowConfirmationModal(false)}
-        onConfirm={() => {
-          setShowConfirmationModal(false);
-          // Ejecutar acción confirmada
-          if (confirmationData?.action) {
-            confirmationData.action();
-          }
-        }}
-        title={confirmationData?.title}
-        message={confirmationData?.message}
-        confirmText={confirmationData?.confirmText}
-        cancelText={confirmationData?.cancelText}
-      />
+      {modalType === 'success' && (
+        <SuccessModal
+          visible={true}
+          message={successMessage}
+          onClose={closeModal}
+        />
+      )}
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#F5F5F5',
   },
   header: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: '#5B9BD5',
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginRight: 12,
+    padding: 4,
   },
   headerTitle: {
-    fontSize: 20,
+    color: 'white',
+    fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
-    flex: 1,
-    textAlign: 'center',
-    marginHorizontal: 16,
   },
-  headerSpacer: {
-    width: 40,
+  menuButton: {
+    padding: 4,
   },
-  infoContainer: {
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-    backgroundColor: '#F8F9FA',
+    paddingVertical: 12,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
-  infoText: {
+  searchText: {
+    color: '#666',
     fontSize: 14,
-    color: '#8E8E93',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  allBrandsText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2C3E50',
-  },
-  content: {
     flex: 1,
   },
-  listContainer: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    flexGrow: 1,
+  addButton: {
+    padding: 4,
   },
-  row: {
-    justifyContent: 'space-around',
-    paddingHorizontal: 6,
-  },
-  loadingContainer: {
+  scrollContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#8E8E93',
+  cardsContainer: {
+    paddingVertical: 16,
+    paddingBottom: 32,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2C3E50',
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#8E8E93',
-    marginTop: 8,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  errorText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#E74C3C',
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  errorSubtext: {
-    fontSize: 14,
-    color: '#8E8E93',
-    marginTop: 8,
-    textAlign: 'center',
-    lineHeight: 20,
+  cardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 0,
   },
 });
-
-export default Marcas;

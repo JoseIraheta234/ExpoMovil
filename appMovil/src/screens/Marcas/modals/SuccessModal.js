@@ -1,15 +1,18 @@
 import React, { useEffect } from 'react';
 import {
-  Modal,
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
-  Animated
+  Modal,
+  TouchableOpacity,
+  Dimensions,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const SuccessModal = ({ visible, onClose, title = "¡Marca guardada!", message = "Se ha agregado tu nueva marca en el sistema" }) => {
+const { width, height } = Dimensions.get('window');
+
+export default function SuccessModal({ visible, message, onClose }) {
   const scaleAnim = new Animated.Value(0);
   const opacityAnim = new Animated.Value(0);
 
@@ -27,13 +30,20 @@ const SuccessModal = ({ visible, onClose, title = "¡Marca guardada!", message =
           useNativeDriver: true,
         })
       ]).start();
+
+      // Auto-close after 2 seconds
+      const timer = setTimeout(() => {
+        handleClose();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
     } else {
       scaleAnim.setValue(0);
       opacityAnim.setValue(0);
     }
   }, [visible]);
 
-  const handleOk = () => {
+  const handleClose = () => {
     Animated.parallel([
       Animated.timing(scaleAnim, {
         toValue: 0,
@@ -50,12 +60,19 @@ const SuccessModal = ({ visible, onClose, title = "¡Marca guardada!", message =
     });
   };
 
+  const getDescription = () => {
+    if (message === '¡Marca guardada!') return 'Se ha añadido una nueva marca en tu sistema';
+    if (message === '¡Se ha actualizado la marca!') return 'La marca se actualiza satisfactoriamente';
+    if (message === '¡Se ha eliminado la marca!') return 'La marca se elimina permanentemente';
+    return 'Operación completada exitosamente';
+  };
+
   return (
     <Modal
       visible={visible}
       transparent={true}
       animationType="none"
-      onRequestClose={handleOk}
+      onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
         <Animated.View 
@@ -69,16 +86,16 @@ const SuccessModal = ({ visible, onClose, title = "¡Marca guardada!", message =
         >
           <View style={styles.iconContainer}>
             <View style={styles.successIcon}>
-              <Ionicons name="checkmark" size={32} color="#FFFFFF" />
+              <Ionicons name="checkmark" size={width * 0.08} color="#FFFFFF" />
             </View>
           </View>
 
-          <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
+          <Text style={styles.description}>{getDescription()}</Text>
 
           <TouchableOpacity
             style={styles.okButton}
-            onPress={handleOk}
+            onPress={handleClose}
             activeOpacity={0.8}
           >
             <Text style={styles.okButtonText}>OK</Text>
@@ -87,7 +104,7 @@ const SuccessModal = ({ visible, onClose, title = "¡Marca guardada!", message =
       </View>
     </Modal>
   );
-};
+}
 
 const styles = StyleSheet.create({
   overlay: {
@@ -95,15 +112,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: width * 0.08,
   },
   modalContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingVertical: 32,
-    paddingHorizontal: 24,
+    borderRadius: width * 0.04,
+    paddingVertical: height * 0.04,
+    paddingHorizontal: width * 0.06,
     alignItems: 'center',
-    minWidth: 280,
+    minWidth: width * 0.7,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -114,43 +131,42 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   iconContainer: {
-    marginBottom: 20,
+    marginBottom: height * 0.025,
   },
   successIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: width * 0.16,
+    height: width * 0.16,
+    borderRadius: width * 0.08,
     backgroundColor: '#27AE60',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
+  message: {
+    fontSize: width * 0.04,
     color: '#2C3E50',
     textAlign: 'center',
-    marginBottom: 12,
+    lineHeight: 22,
+    marginBottom: height * 0.01,
+    fontWeight: '600',
   },
-  message: {
-    fontSize: 14,
-    color: '#7F8C8D',
+  description: {
+    fontSize: width * 0.035,
+    color: '#666',
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
+    lineHeight: 18,
+    marginBottom: height * 0.03,
   },
   okButton: {
     backgroundColor: '#27AE60',
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: 100,
+    paddingHorizontal: width * 0.08,
+    paddingVertical: height * 0.015,
+    borderRadius: width * 0.02,
+    minWidth: width * 0.25,
   },
   okButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: width * 0.04,
     fontWeight: '600',
     textAlign: 'center',
   },
 });
-
-export default SuccessModal;
