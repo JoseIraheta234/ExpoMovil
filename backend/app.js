@@ -12,11 +12,11 @@ import profileRoutes from "./src/routes/profile.js";
 
 // Rutas de recursos principales
 import clientsRoutes from "./src/routes/clients.js";
-import employeesRoutes from "./src/routes/Empleados.js";
+import employeesRoutes from "./src/routes/Employees.js";
 import vehiclesRoutes from "./src/routes/vehicles.js";
 import reservationsRoutes from "./src/routes/reservas.js";
 import contractsRoutes from "./src/routes/contratos.js";
-import maintenancesRoutes from "./src/routes/maintenances.js";
+import maintenancesRoutes from "./src/routes/mantenimientos.js";
 import brandsRoutes from "./src/routes/brands.js";
 
 // Rutas utilitarias y de comunicación
@@ -48,7 +48,7 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/clients", clientsRoutes);
 app.use("/api/employees", employeesRoutes);
 app.use("/api/vehicles", vehiclesRoutes);
-app.use("/api/reservations", reservationsRoutes);
+app.use("/api/reservas", reservationsRoutes);
 app.use("/api/contracts", contractsRoutes);
 app.use("/api/maintenances", maintenancesRoutes);
 app.use("/api/brands", brandsRoutes);
