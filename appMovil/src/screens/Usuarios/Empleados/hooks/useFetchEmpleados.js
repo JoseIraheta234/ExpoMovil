@@ -3,6 +3,16 @@ import { useState, useEffect, useCallback } from 'react';
 // Para emulador Android usa 10.0.2.2 en lugar de localhost
 const API_BASE_URL = 'http://10.0.2.2:4000/api';
 
+// Función helper para manejar timeout en fetch
+const fetchWithTimeout = (url, options = {}, timeout = 15000) => {
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timeout')), timeout)
+    )
+  ]);
+};
+
 export const useFetchEmpleados = () => {
   const [empleados, setEmpleados] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -14,14 +24,13 @@ export const useFetchEmpleados = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${API_BASE_URL}/employees`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/employees`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        timeout: 15000,
-      });
+      }, 15000);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -58,7 +67,7 @@ export const useFetchEmpleados = () => {
       
       if (err.message.includes('Network request failed') || err.message.includes('fetch')) {
         errorMessage = 'No se puede conectar al servidor. Verifica que el backend esté ejecutándose en ' + API_BASE_URL;
-      } else if (err.message.includes('timeout')) {
+      } else if (err.message.includes('Request timeout')) {
         errorMessage = 'Tiempo de espera agotado. El servidor tardó demasiado en responder.';
       } else if (err.message.includes('JSON')) {
         errorMessage = 'Error al procesar la respuesta del servidor.';
@@ -70,6 +79,7 @@ export const useFetchEmpleados = () => {
       
       setError(errorMessage);
       setEmpleados([]);
+      console.error('Error en fetchEmpleados:', err);
     } finally {
       setLoading(false);
     }
@@ -108,13 +118,13 @@ export const useFetchEmpleados = () => {
         });
       }
 
-      const response = await fetch(`${API_BASE_URL}/employees`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/employees`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
         },
         body: formData,
-      });
+      }, 15000);
 
       const result = await response.json();
 
@@ -127,6 +137,7 @@ export const useFetchEmpleados = () => {
       return result;
     } catch (err) {
       setError(err.message);
+      console.error('Error en createEmpleado:', err);
       throw err;
     }
   }, [fetchEmpleados]);
@@ -136,13 +147,13 @@ export const useFetchEmpleados = () => {
     try {
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/employees/${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-      });
+      }, 15000);
 
       const result = await response.json();
 
@@ -157,6 +168,7 @@ export const useFetchEmpleados = () => {
       return result;
     } catch (err) {
       setError(err.message);
+      console.error('Error en deleteEmpleado:', err);
       throw err;
     }
   }, []);
@@ -207,13 +219,13 @@ export const useFetchEmpleados = () => {
         });
       }
 
-      const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/employees/${id}`, {
         method: 'PUT',
         headers: {
           'Accept': 'application/json',
         },
         body: formData,
-      });
+      }, 15000);
 
       const result = await response.json();
 
@@ -226,6 +238,7 @@ export const useFetchEmpleados = () => {
       return result;
     } catch (err) {
       setError(err.message);
+      console.error('Error en updateEmpleado:', err);
       throw err;
     }
   }, [empleados, fetchEmpleados]);

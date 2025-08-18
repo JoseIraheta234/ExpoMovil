@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 const { width, height } = Dimensions.get('window');
 
-export default function AddClientModal({ visible, onClose, onConfirm }) {
+export default function ClientDetailsModal({ visible, cliente, onClose, onUpdate, isEditing = false }) {
   const [formData, setFormData] = useState({
     name: '',
     lastName: '',
@@ -34,8 +34,25 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
     foto: '',
   });
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  useEffect(() => {
+    if (cliente) {
+      setFormData({
+        name: cliente.name || '',
+        lastName: cliente.lastName || '',
+        email: cliente.email || '',
+        password: cliente.password || '',
+        phone: cliente.phone || '',
+        birthDate: cliente.birthDate ? new Date(cliente.birthDate) : new Date(),
+        licenseFront: cliente.licenseFront || '',
+        licenseBack: cliente.licenseBack || '',
+        passportFront: cliente.passportFront || '',
+        passportBack: cliente.passportBack || '',
+        foto: cliente.foto || '',
+      });
+    }
+  }, [cliente]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -45,7 +62,6 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
   };
 
   const pickImage = async (field) => {
-    // Pedir permisos
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
     if (permissionResult.granted === false) {
@@ -53,7 +69,6 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
       return;
     }
 
-    // Abrir selector de imágenes
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -67,7 +82,6 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
   };
 
   const takePhoto = async (field) => {
-    // Pedir permisos de cámara
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     
     if (permissionResult.granted === false) {
@@ -75,7 +89,6 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
       return;
     }
 
-    // Abrir cámara
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: field === 'foto' ? [1, 1] : [4, 3],
@@ -126,95 +139,38 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
     });
   };
 
-  const handleSave = () => {
-    if (formData.name.trim() && formData.lastName.trim() && formData.email.trim() && 
-        formData.password.trim() && formData.phone.trim()) {
-      setShowConfirmationModal(true);
+  const handleUpdate = () => {
+    if (formData.name.trim() && formData.lastName.trim() && formData.email.trim()) {
+      onUpdate(formData);
+      setShowSuccessModal(true);
     } else {
-      Alert.alert('Error', 'Por favor completa todos los campos obligatorios (nombre, apellido, email, contraseña y teléfono)');
+      Alert.alert('Error', 'Por favor completa los campos obligatorios');
     }
-  };
-
-  const handleConfirmSave = () => {
-    setShowConfirmationModal(false);
-    onConfirm(formData);
-    setShowSuccessModal(true);
   };
 
   const handleSuccessClose = () => {
     setShowSuccessModal(false);
-    setFormData({
-      name: '',
-      lastName: '',
-      email: '',
-      password: '',
-      phone: '',
-      birthDate: new Date(),
-      licenseFront: '',
-      licenseBack: '',
-      passportFront: '',
-      passportBack: '',
-      foto: '',
-    });
     onClose();
   };
 
-  const handleClose = () => {
-    setFormData({
-      name: '',
-      lastName: '',
-      email: '',
-      password: '',
-      phone: '',
-      birthDate: new Date(),
-      licenseFront: '',
-      licenseBack: '',
-      passportFront: '',
-      passportBack: '',
-      foto: '',
-    });
-    onClose();
+  const getInitials = (name, lastName) => {
+    return ((name || '').charAt(0) + (lastName || '').charAt(0))
+      .toUpperCase();
   };
 
-  // Modal de confirmación
-  if (showConfirmationModal) {
+  const renderDocumentImage = (imageUri, placeholder) => {
+    if (imageUri) {
+      return (
+        <Image source={{ uri: imageUri }} style={styles.documentImage} />
+      );
+    }
     return (
-      <Modal
-        visible={visible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowConfirmationModal(false)}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.confirmationContainer}>
-            <View style={styles.questionIcon}>
-              <Ionicons name="help" size={32} color="white" />
-            </View>
-            <Text style={styles.confirmationTitle}>¿Estás seguro?</Text>
-            <Text style={styles.confirmationMessage}>
-              Los datos no se han guardado todavía ¿estás seguro que quieres continuar?
-            </Text>
-            <View style={styles.confirmationButtons}>
-              <TouchableOpacity
-                style={[styles.button, styles.confirmationCancelButton]}
-                onPress={() => setShowConfirmationModal(false)}
-              >
-                <Text style={styles.cancelButtonText}>Regresar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.confirmationConfirmButton]}
-                onPress={handleConfirmSave}
-              >
-                <Text style={styles.confirmButtonText}>Sí, estoy seguro</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <View style={styles.documentPlaceholder}>
+        <Text style={styles.documentPlaceholderText}>{placeholder}</Text>
+      </View>
     );
-  }
+  };
 
-  // Modal de éxito
   if (showSuccessModal) {
     return (
       <Modal
@@ -228,8 +184,8 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
             <View style={styles.successIcon}>
               <Ionicons name="checkmark" size={32} color="white" />
             </View>
-            <Text style={styles.successTitle}>¡Nuevo cliente guardado!</Text>
-            <Text style={styles.successMessage}>El cliente se ha guardado satisfactoriamente</Text>
+            <Text style={styles.successTitle}>¡Cliente actualizado!</Text>
+            <Text style={styles.successMessage}>El cliente se actualizó satisfactoriamente</Text>
             <TouchableOpacity
               style={styles.okButton}
               onPress={handleSuccessClose}
@@ -247,7 +203,7 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
       visible={visible}
       transparent={true}
       animationType="slide"
-      onRequestClose={handleClose}
+      onRequestClose={onClose}
     >
       <View style={styles.overlay}>
         <KeyboardAvoidingView
@@ -256,97 +212,126 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
         >
           <View style={styles.modalContainer}>
             <View style={styles.header}>
-              <TouchableOpacity onPress={handleClose}>
+              <TouchableOpacity onPress={onClose}>
                 <Ionicons name="chevron-back" size={24} color="white" />
               </TouchableOpacity>
-              <Text style={styles.title}>Añadir cliente</Text>
+              <Text style={styles.title}>Detalles del Cliente</Text>
               <View style={{ width: 24 }} />
             </View>
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-              <View style={styles.iconContainer}>
-                <TouchableOpacity 
-                  style={styles.photoUploadButton}
-                  onPress={() => showImageOptions('foto')}
-                >
-                  {formData.foto ? (
-                    <Image source={{ uri: formData.foto }} style={styles.photoPreview} />
+              <View style={styles.avatarContainer}>
+                {isEditing ? (
+                  <TouchableOpacity 
+                    style={styles.avatarButton}
+                    onPress={() => showImageOptions('foto')}
+                  >
+                    {formData.foto ? (
+                      <Image source={{ uri: formData.foto }} style={styles.avatar} />
+                    ) : (
+                      <View style={styles.avatarPlaceholder}>
+                        <Text style={styles.avatarText}>
+                          {getInitials(cliente?.name, cliente?.lastName)}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.cameraOverlay}>
+                      <Ionicons name="camera" size={20} color="white" />
+                    </View>
+                  </TouchableOpacity>
+                ) : (
+                  formData.foto ? (
+                    <Image source={{ uri: formData.foto }} style={styles.avatar} />
                   ) : (
-                    <Ionicons name="camera" size={32} color="#5B9BD5" />
-                  )}
-                </TouchableOpacity>
+                    <View style={styles.avatarPlaceholder}>
+                      <Text style={styles.avatarText}>
+                        {getInitials(cliente?.name, cliente?.lastName)}
+                      </Text>
+                    </View>
+                  )
+                )}
               </View>
 
               <View style={styles.formContainer}>
                 <View style={styles.row}>
                   <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
-                    <Text style={styles.label}>Nombre *</Text>
+                    <Text style={styles.label}>Nombre</Text>
                     <TextInput
-                      style={styles.input}
-                      placeholder="María"
+                      style={[styles.input, !isEditing && styles.disabledInput]}
                       value={formData.name}
                       onChangeText={(value) => handleInputChange('name', value)}
-                      autoCapitalize="words"
+                      editable={isEditing}
+                      placeholder="Nombre"
                     />
                   </View>
 
                   <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
-                    <Text style={styles.label}>Apellido *</Text>
+                    <Text style={styles.label}>Apellido</Text>
                     <TextInput
-                      style={styles.input}
-                      placeholder="González"
+                      style={[styles.input, !isEditing && styles.disabledInput]}
                       value={formData.lastName}
                       onChangeText={(value) => handleInputChange('lastName', value)}
-                      autoCapitalize="words"
+                      editable={isEditing}
+                      placeholder="Apellido"
                     />
                   </View>
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Correo electrónico *</Text>
+                  <Text style={styles.label}>Correo electrónico</Text>
                   <TextInput
-                    style={styles.input}
-                    placeholder="maria.gonzalez@email.com"
+                    style={[styles.input, !isEditing && styles.disabledInput]}
                     value={formData.email}
                     onChangeText={(value) => handleInputChange('email', value)}
+                    editable={isEditing}
+                    placeholder="correo@email.com"
                     keyboardType="email-address"
                     autoCapitalize="none"
                   />
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Contraseña *</Text>
+                  <Text style={styles.label}>Contraseña</Text>
                   <TextInput
-                    style={styles.input}
-                    placeholder="••••••••••••"
+                    style={[styles.input, !isEditing && styles.disabledInput]}
                     value={formData.password}
                     onChangeText={(value) => handleInputChange('password', value)}
+                    editable={isEditing}
                     secureTextEntry={true}
                   />
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Teléfono *</Text>
+                  <Text style={styles.label}>Teléfono</Text>
                   <TextInput
-                    style={styles.input}
-                    placeholder="1234-5678"
+                    style={[styles.input, !isEditing && styles.disabledInput]}
                     value={formData.phone}
                     onChangeText={(value) => handleInputChange('phone', value)}
+                    editable={isEditing}
+                    placeholder="0000-0000"
                     keyboardType="phone-pad"
                   />
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Fecha de nacimiento *</Text>
-                  <TouchableOpacity
-                    style={styles.dateInput}
-                    onPress={() => setShowDatePicker(true)}
-                  >
-                    <Text style={styles.dateText}>
-                      {formatDate(formData.birthDate)}
-                    </Text>
-                    <Ionicons name="calendar" size={20} color="#666" />
-                  </TouchableOpacity>
+                  <Text style={styles.label}>Fecha de nacimiento</Text>
+                  {isEditing ? (
+                    <TouchableOpacity
+                      style={styles.dateInput}
+                      onPress={() => setShowDatePicker(true)}
+                    >
+                      <Text style={styles.dateText}>
+                        {formatDate(formData.birthDate)}
+                      </Text>
+                      <Ionicons name="calendar" size={20} color="#666" />
+                    </TouchableOpacity>
+                  ) : (
+                    <TextInput
+                      style={[styles.input, styles.disabledInput]}
+                      value={formatDate(formData.birthDate)}
+                      editable={false}
+                    />
+                  )}
                   {showDatePicker && (
                     <DateTimePicker
                       value={formData.birthDate}
@@ -358,61 +343,77 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
                   )}
                 </View>
 
-                <Text style={styles.sectionTitle}>Documentos (Opcional)</Text>
+                <Text style={styles.sectionTitle}>Documentos</Text>
 
                 <View style={styles.row}>
                   <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
                     <Text style={styles.label}>Licencia (Frente)</Text>
-                    <TouchableOpacity 
-                      style={styles.documentButton}
-                      onPress={() => showImageOptions('licenseFront')}
-                    >
-                      <Ionicons name="camera" size={20} color="#5B9BD5" />
-                      <Text style={styles.documentButtonText}>
-                        {formData.licenseFront ? 'Cambiar foto' : 'Subir foto'}
-                      </Text>
-                    </TouchableOpacity>
+                    {isEditing ? (
+                      <TouchableOpacity 
+                        style={styles.documentButton}
+                        onPress={() => showImageOptions('licenseFront')}
+                      >
+                        <Ionicons name="camera" size={20} color="#5B9BD5" />
+                        <Text style={styles.documentButtonText}>
+                          {formData.licenseFront ? 'Cambiar' : 'Subir'}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      renderDocumentImage(formData.licenseFront, 'Sin imagen')
+                    )}
                   </View>
 
                   <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
                     <Text style={styles.label}>Licencia (Reverso)</Text>
-                    <TouchableOpacity 
-                      style={styles.documentButton}
-                      onPress={() => showImageOptions('licenseBack')}
-                    >
-                      <Ionicons name="camera" size={20} color="#5B9BD5" />
-                      <Text style={styles.documentButtonText}>
-                        {formData.licenseBack ? 'Cambiar foto' : 'Subir foto'}
-                      </Text>
-                    </TouchableOpacity>
+                    {isEditing ? (
+                      <TouchableOpacity 
+                        style={styles.documentButton}
+                        onPress={() => showImageOptions('licenseBack')}
+                      >
+                        <Ionicons name="camera" size={20} color="#5B9BD5" />
+                        <Text style={styles.documentButtonText}>
+                          {formData.licenseBack ? 'Cambiar' : 'Subir'}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      renderDocumentImage(formData.licenseBack, 'Sin imagen')
+                    )}
                   </View>
                 </View>
 
                 <View style={styles.row}>
                   <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
                     <Text style={styles.label}>Pasaporte (Frente)</Text>
-                    <TouchableOpacity 
-                      style={styles.documentButton}
-                      onPress={() => showImageOptions('passportFront')}
-                    >
-                      <Ionicons name="camera" size={20} color="#5B9BD5" />
-                      <Text style={styles.documentButtonText}>
-                        {formData.passportFront ? 'Cambiar foto' : 'Subir foto'}
-                      </Text>
-                    </TouchableOpacity>
+                    {isEditing ? (
+                      <TouchableOpacity 
+                        style={styles.documentButton}
+                        onPress={() => showImageOptions('passportFront')}
+                      >
+                        <Ionicons name="camera" size={20} color="#5B9BD5" />
+                        <Text style={styles.documentButtonText}>
+                          {formData.passportFront ? 'Cambiar' : 'Subir'}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      renderDocumentImage(formData.passportFront, 'Sin imagen')
+                    )}
                   </View>
 
                   <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
                     <Text style={styles.label}>Pasaporte (Reverso)</Text>
-                    <TouchableOpacity 
-                      style={styles.documentButton}
-                      onPress={() => showImageOptions('passportBack')}
-                    >
-                      <Ionicons name="camera" size={20} color="#5B9BD5" />
-                      <Text style={styles.documentButtonText}>
-                        {formData.passportBack ? 'Cambiar foto' : 'Subir foto'}
-                      </Text>
-                    </TouchableOpacity>
+                    {isEditing ? (
+                      <TouchableOpacity 
+                        style={styles.documentButton}
+                        onPress={() => showImageOptions('passportBack')}
+                      >
+                        <Ionicons name="camera" size={20} color="#5B9BD5" />
+                        <Text style={styles.documentButtonText}>
+                          {formData.passportBack ? 'Cambiar' : 'Subir'}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      renderDocumentImage(formData.passportBack, 'Sin imagen')
+                    )}
                   </View>
                 </View>
               </View>
@@ -421,17 +422,19 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
             <View style={styles.footer}>
               <TouchableOpacity
                 style={[styles.button, styles.cancelButton]}
-                onPress={handleClose}
+                onPress={onClose}
               >
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
-                onPress={handleSave}
-              >
-                <Text style={styles.saveButtonText}>Guardar</Text>
-              </TouchableOpacity>
+              {isEditing && (
+                <TouchableOpacity
+                  style={[styles.button, styles.updateButton]}
+                  onPress={handleUpdate}
+                >
+                  <Text style={styles.updateButtonText}>Actualizar</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -475,27 +478,44 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
   },
-  iconContainer: {
+  avatarContainer: {
     alignItems: 'center',
     marginVertical: 30,
   },
-  photoUploadButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#F0F8FF',
-    borderWidth: 2,
-    borderColor: '#5B9BD5',
-    borderStyle: 'dashed',
+  avatarButton: {
+    position: 'relative',
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    resizeMode: 'cover',
+  },
+  avatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#E0E0E0',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
-  photoPreview: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    resizeMode: 'cover',
+  avatarText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  cameraOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#5B9BD5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
   },
   formContainer: {
     marginBottom: 20,
@@ -517,6 +537,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     backgroundColor: '#FAFAFA',
+  },
+  disabledInput: {
+    backgroundColor: '#F5F5F5',
+    color: '#666',
   },
   row: {
     flexDirection: 'row',
@@ -560,6 +584,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  documentImage: {
+    width: '100%',
+    height: 80,
+    borderRadius: 8,
+    resizeMode: 'cover',
+  },
+  documentPlaceholder: {
+    width: '100%',
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  documentPlaceholderText: {
+    color: '#999',
+    fontSize: 12,
+  },
   footer: {
     flexDirection: 'row',
     padding: 20,
@@ -581,60 +625,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  saveButton: {
-    backgroundColor: '#27AE60',
+  updateButton: {
+    backgroundColor: '#5B9BD5',
   },
-  saveButtonText: {
+  updateButtonText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: '600',
-  },
-  // Confirmation Modal Styles
-  confirmationContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 32,
-    alignItems: 'center',
-    marginHorizontal: 32,
-  },
-  questionIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#F39C12',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  confirmationTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  confirmationMessage: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  confirmationButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  confirmationCancelButton: {
-    backgroundColor: '#95A5A6',
-    paddingHorizontal: 16,
-  },
-  confirmationConfirmButton: {
-    backgroundColor: '#5B9BD5',
-    paddingHorizontal: 16,
-  },
-  confirmButtonText: {
-    color: 'white',
-    fontSize: 14,
     fontWeight: '600',
   },
   // Success Modal Styles

@@ -3,6 +3,16 @@ import { useState, useEffect, useCallback } from 'react';
 // Para emulador Android usa 10.0.2.2 en lugar de localhost
 const API_BASE_URL = 'http://10.0.2.2:4000/api';
 
+// Función helper para manejar timeout en fetch
+const fetchWithTimeout = (url, options = {}, timeout = 15000) => {
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timeout')), timeout)
+    )
+  ]);
+};
+
 export const useFetchClientes = () => {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -14,14 +24,13 @@ export const useFetchClientes = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${API_BASE_URL}/clients`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/clients`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        timeout: 15000,
-      });
+      }, 15000);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -55,6 +64,30 @@ export const useFetchClientes = () => {
         }));
 
         setClientes(transformedClientes);
+      } else if (result.data && Array.isArray(result.data)) {
+        // Si el backend devuelve un objeto con data
+        const validClientes = result.data.filter(cliente => {
+          return cliente._id && cliente.name && cliente.lastName && cliente.email;
+        });
+
+        const transformedClientes = validClientes.map(cliente => ({
+          id: cliente._id,
+          name: cliente.name,
+          lastName: cliente.lastName,
+          email: cliente.email,
+          password: '••••••••••••',
+          phone: cliente.phone || '',
+          birthDate: cliente.birthDate || '',
+          licenseFront: cliente.licenseFront || '',
+          licenseBack: cliente.licenseBack || '',
+          passportFront: cliente.passportFront || '',
+          passportBack: cliente.passportBack || '',
+          foto: cliente.photo || '',
+          activo: true,
+          fechaRegistro: cliente.createdAt ? cliente.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+        }));
+
+        setClientes(transformedClientes);
       } else {
         throw new Error('Formato de respuesta inesperado del servidor');
       }
@@ -63,7 +96,7 @@ export const useFetchClientes = () => {
       
       if (err.message.includes('Network request failed') || err.message.includes('fetch')) {
         errorMessage = 'No se puede conectar al servidor. Verifica que el backend esté ejecutándose en ' + API_BASE_URL;
-      } else if (err.message.includes('timeout')) {
+      } else if (err.message.includes('Request timeout')) {
         errorMessage = 'Tiempo de espera agotado. El servidor tardó demasiado en responder.';
       } else if (err.message.includes('JSON')) {
         errorMessage = 'Error al procesar la respuesta del servidor.';
@@ -75,6 +108,7 @@ export const useFetchClientes = () => {
       
       setError(errorMessage);
       setClientes([]);
+      console.error('Error en fetchClientes:', err);
     } finally {
       setLoading(false);
     }
@@ -106,65 +140,30 @@ export const useFetchClientes = () => {
       }
       
       // Agregar imágenes de documentos si existen
-      if (clienteData.licenseFront) {
-        const imageUri = clienteData.licenseFront;
-        const filename = imageUri.split('/').pop();
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image';
-        
-        formData.append('licenseFront', {
-          uri: imageUri,
-          name: filename,
-          type: type,
-        });
-      }
+      const imageFields = ['licenseFront', 'licenseBack', 'passportFront', 'passportBack', 'foto'];
       
-      if (clienteData.licenseBack) {
-        const imageUri = clienteData.licenseBack;
-        const filename = imageUri.split('/').pop();
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image';
-        
-        formData.append('licenseBack', {
-          uri: imageUri,
-          name: filename,
-          type: type,
-        });
-      }
-      
-      if (clienteData.passportFront) {
-        const imageUri = clienteData.passportFront;
-        const filename = imageUri.split('/').pop();
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image';
-        
-        formData.append('passportFront', {
-          uri: imageUri,
-          name: filename,
-          type: type,
-        });
-      }
-      
-      if (clienteData.passportBack) {
-        const imageUri = clienteData.passportBack;
-        const filename = imageUri.split('/').pop();
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image';
-        
-        formData.append('passportBack', {
-          uri: imageUri,
-          name: filename,
-          type: type,
-        });
-      }
+      imageFields.forEach(field => {
+        if (clienteData[field]) {
+          const imageUri = clienteData[field];
+          const filename = imageUri.split('/').pop();
+          const match = /\.(\w+)$/.exec(filename);
+          const type = match ? `image/${match[1]}` : 'image';
+          
+          formData.append(field === 'foto' ? 'photo' : field, {
+            uri: imageUri,
+            name: filename,
+            type: type,
+          });
+        }
+      });
 
-      const response = await fetch(`${API_BASE_URL}/registerClients`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/registerClients`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
         },
         body: formData,
-      });
+      }, 15000);
 
       const result = await response.json();
 
@@ -177,6 +176,7 @@ export const useFetchClientes = () => {
       return result;
     } catch (err) {
       setError(err.message);
+      console.error('Error en createCliente:', err);
       throw err;
     }
   }, [fetchClientes]);
@@ -186,13 +186,13 @@ export const useFetchClientes = () => {
     try {
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/clients/${id}`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/clients/${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-      });
+      }, 15000);
 
       const result = await response.json();
 
@@ -207,6 +207,7 @@ export const useFetchClientes = () => {
       return result;
     } catch (err) {
       setError(err.message);
+      console.error('Error en deleteCliente:', err);
       throw err;
     }
   }, []);
@@ -219,25 +220,12 @@ export const useFetchClientes = () => {
       // Crear FormData para enviar archivos de imágenes
       const formData = new FormData();
       
-      if (clienteData.name) {
-        formData.append('name', clienteData.name);
-      }
-      
-      if (clienteData.lastName) {
-        formData.append('lastName', clienteData.lastName);
-      }
-      
-      if (clienteData.email) {
-        formData.append('email', clienteData.email);
-      }
-      
-      if (clienteData.password && clienteData.password !== '••••••••••••') {
-        formData.append('password', clienteData.password);
-      }
-      
-      if (clienteData.phone) {
-        formData.append('phone', clienteData.phone);
-      }
+      const textFields = ['name', 'lastName', 'email', 'password', 'phone'];
+      textFields.forEach(field => {
+        if (clienteData[field] && clienteData[field] !== '••••••••••••') {
+          formData.append(field, clienteData[field]);
+        }
+      });
       
       if (clienteData.birthDate) {
         if (clienteData.birthDate instanceof Date) {
@@ -249,66 +237,44 @@ export const useFetchClientes = () => {
       
       // Solo añadir imágenes si son diferentes a las actuales
       const currentCliente = clientes.find(c => c.id === id);
+      const imageFields = ['licenseFront', 'licenseBack', 'passportFront', 'passportBack'];
       
-      if (clienteData.licenseFront && clienteData.licenseFront !== currentCliente?.licenseFront) {
-        const imageUri = clienteData.licenseFront;
+      imageFields.forEach(field => {
+        if (clienteData[field] && clienteData[field] !== currentCliente?.[field]) {
+          const imageUri = clienteData[field];
+          const filename = imageUri.split('/').pop();
+          const match = /\.(\w+)$/.exec(filename);
+          const type = match ? `image/${match[1]}` : 'image';
+          
+          formData.append(field, {
+            uri: imageUri,
+            name: filename,
+            type: type,
+          });
+        }
+      });
+
+      // Manejar foto por separado
+      if (clienteData.foto && clienteData.foto !== currentCliente?.foto) {
+        const imageUri = clienteData.foto;
         const filename = imageUri.split('/').pop();
         const match = /\.(\w+)$/.exec(filename);
         const type = match ? `image/${match[1]}` : 'image';
         
-        formData.append('licenseFront', {
-          uri: imageUri,
-          name: filename,
-          type: type,
-        });
-      }
-      
-      if (clienteData.licenseBack && clienteData.licenseBack !== currentCliente?.licenseBack) {
-        const imageUri = clienteData.licenseBack;
-        const filename = imageUri.split('/').pop();
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image';
-        
-        formData.append('licenseBack', {
-          uri: imageUri,
-          name: filename,
-          type: type,
-        });
-      }
-      
-      if (clienteData.passportFront && clienteData.passportFront !== currentCliente?.passportFront) {
-        const imageUri = clienteData.passportFront;
-        const filename = imageUri.split('/').pop();
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image';
-        
-        formData.append('passportFront', {
-          uri: imageUri,
-          name: filename,
-          type: type,
-        });
-      }
-      
-      if (clienteData.passportBack && clienteData.passportBack !== currentCliente?.passportBack) {
-        const imageUri = clienteData.passportBack;
-        const filename = imageUri.split('/').pop();
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image';
-        
-        formData.append('passportBack', {
+        formData.append('photo', {
           uri: imageUri,
           name: filename,
           type: type,
         });
       }
 
-      const response = await fetch(`${API_BASE_URL}/clients/${id}`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/clients/${id}`, {
         method: 'PUT',
         headers: {
           'Accept': 'application/json',
         },
         body: formData,
-      });
+      }, 15000);
 
       const result = await response.json();
 
@@ -321,6 +287,7 @@ export const useFetchClientes = () => {
       return result;
     } catch (err) {
       setError(err.message);
+      console.error('Error en updateCliente:', err);
       throw err;
     }
   }, [clientes, fetchClientes]);
@@ -330,9 +297,9 @@ export const useFetchClientes = () => {
     if (!query) return clientes;
     
     return clientes.filter(cliente =>
-      cliente.name.toLowerCase().includes(query.toLowerCase()) ||
-      cliente.lastName.toLowerCase().includes(query.toLowerCase()) ||
-      cliente.email.toLowerCase().includes(query.toLowerCase())
+      cliente.name?.toLowerCase().includes(query.toLowerCase()) ||
+      cliente.lastName?.toLowerCase().includes(query.toLowerCase()) ||
+      cliente.email?.toLowerCase().includes(query.toLowerCase())
     );
   }, [clientes]);
 

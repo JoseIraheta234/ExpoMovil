@@ -17,13 +17,14 @@ import AddEmployeeModal from './Empleados/modals/AddEmployeeModal';
 import AddClientModal from './Clientes/modals/AddClientModal';
 import EmployeeDetailsModal from './Empleados/modals/EmployeeDetailsModal';
 import ClientDetailsModal from './Clientes/modals/ClientDetailsModal';
-import { useFetchEmpleados } from './Empleados/hooks/useFetchEmpleados'; 
+// Importar los hooks
+import { useFetchEmpleados } from './Empleados/hooks/useFetchEmpleados';
 import { useFetchClientes } from './Clientes/hooks/useFetchClientes';
 
 const { width, height } = Dimensions.get('window');
 
 export default function Usuarios() {
-  // Move hooks INSIDE the component
+  // Usar solo los hooks useFetch
   const { empleados, addEmpleado, updateEmpleado, loading, error } = useFetchEmpleados();
   const { clientes, addCliente, updateCliente, loading: clientesLoading, error: clientesError } = useFetchClientes();
   
@@ -42,24 +43,40 @@ export default function Usuarios() {
     setSelectedUser(null);
   };
 
-  const handleAddEmployee = (employeeData) => {
-    addEmpleado(employeeData);
-    closeModal();
+  const handleAddEmployee = async (employeeData) => {
+    try {
+      await addEmpleado(employeeData);
+      closeModal();
+    } catch (error) {
+      console.error('Error al agregar empleado:', error);
+    }
   };
 
-  const handleAddClient = (clientData) => {
-    addCliente(clientData);
-    closeModal();
+  const handleAddClient = async (clientData) => {
+    try {
+      await addCliente(clientData);
+      closeModal();
+    } catch (error) {
+      console.error('Error al agregar cliente:', error);
+    }
   };
 
-  const handleUpdateEmployee = (userData) => {
-    updateEmpleado(selectedUser.id, userData);
-    closeModal();
+  const handleUpdateEmployee = async (userData) => {
+    try {
+      await updateEmpleado(selectedUser.id, userData);
+      closeModal();
+    } catch (error) {
+      console.error('Error al actualizar empleado:', error);
+    }
   };
 
-  const handleUpdateClient = (userData) => {
-    updateCliente(selectedUser.id, userData);
-    closeModal();
+  const handleUpdateClient = async (userData) => {
+    try {
+      await updateCliente(selectedUser.id, userData);
+      closeModal();
+    } catch (error) {
+      console.error('Error al actualizar cliente:', error);
+    }
   };
 
   const filteredUsers = () => {
@@ -68,14 +85,14 @@ export default function Usuarios() {
     if (searchQuery.trim()) {
       users = users.filter(user => {
         if (activeTab === 'empleados') {
-          return user.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                 user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          return user.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                 user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                  (user.rol && user.rol.toLowerCase().includes(searchQuery.toLowerCase()));
         } else {
           // Para clientes, buscar en name, lastName y email
           const fullName = `${user.name || ''} ${user.lastName || ''}`.toLowerCase();
           return fullName.includes(searchQuery.toLowerCase()) ||
-                 user.email.toLowerCase().includes(searchQuery.toLowerCase());
+                 user.email?.toLowerCase().includes(searchQuery.toLowerCase());
         }
       });
     }
@@ -128,6 +145,28 @@ export default function Usuarios() {
       openModal('addClient');
     }
   };
+
+  if (loading || clientesLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text>Cargando...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || clientesError) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>
+            Error: {error || clientesError}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -244,6 +283,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    color: 'red',
+    textAlign: 'center',
+    fontSize: 16,
   },
   header: {
     backgroundColor: '#5B9BD5',
