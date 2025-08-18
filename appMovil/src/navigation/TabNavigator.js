@@ -1,13 +1,14 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform } from 'react-native';
+import { Platform, View, Text } from 'react-native';
 
 // Importar las pantallas
 import HomeScreen from '../screens/HomeScreen';
 import Marcas from '../screens/Marcas/Marcas';
 import MaintenanceScreen from '../screens/Maintenances/Maintenance';
 import ProfileScreen from '../screens/ProfileScreen';
+import Usuarios from '../screens/Usuarios/Usuarios';
 
 const Tab = createBottomTabNavigator();
 
@@ -24,6 +25,8 @@ const TabNavigator = () => {
             iconName = focused ? 'car-sport' : 'car-sport-outline';
           } else if (route.name === 'Maintenance') {
             iconName = focused ? 'construct' : 'construct-outline';
+          } else if (route.name === 'Users') {
+            iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -53,7 +56,7 @@ const TabNavigator = () => {
           fontWeight: '600',
           marginTop: -2,
         },
-        headerShown: false, // Ocultamos headers globalmente ya que cada pantalla maneja el suyo
+        headerShown: false,
       })}
     >
       <Tab.Screen
@@ -78,6 +81,14 @@ const TabNavigator = () => {
         options={{
           tabBarLabel: 'Mantenimiento',
           title: 'Mantenimiento'
+        }}
+      />
+      <Tab.Screen
+        name="Users"
+        component={Usuarios}
+        options={{
+          tabBarLabel: 'Usuarios',
+          title: 'Usuarios'
         }}
       />
       <Tab.Screen
