@@ -5,68 +5,139 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  ScrollView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-const VehicleSelector = ({ selectedVehicle, onSelectVehicle }) => {
-  // Datos de ejemplo - después conectarás con tu API
-  const vehicles = [
-    {
-      id: 1,
-      name: 'Nissan Navara (Frontier)',
-      year: '2023',
-      image: 'https://images.unsplash.com/photo-1619976215249-52d83ab4e8b9?w=300&h=200&fit=crop&auto=format',
-      status: 'Disponible'
-    },
-    {
-      id: 2,
-      name: 'Nissan Navara',
-      year: '2023',
-      image: 'https://images.unsplash.com/photo-1619976215249-52d83ab4e8b9?w=300&h=200&fit=crop&auto=format',
-      status: 'Disponible'
+const VehicleSelector = ({ vehicles, selectedVehicle, onSelectVehicle }) => {
+  
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Disponible':
+        return {
+          backgroundColor: 'rgba(16, 185, 129, 0.15)',
+          color: '#10B981'
+        };
+      case 'Reservado':
+        return {
+          backgroundColor: 'rgba(59, 130, 246, 0.15)',
+          color: '#3B82F6'
+        };
+      case 'Mantenimiento':
+        return {
+          backgroundColor: 'rgba(245, 158, 11, 0.15)',
+          color: '#F59E0B'
+        };
+      default:
+        return {
+          backgroundColor: 'rgba(16, 185, 129, 0.15)',
+          color: '#10B981'
+        };
     }
-  ];
+  };
+
+  const getVehicleImage = (vehicle) => {
+    // Priorizar sideImage, luego mainViewImage, luego primera imagen de galería
+    if (vehicle.sideImage) {
+      return vehicle.sideImage;
+    }
+    if (vehicle.mainViewImage) {
+      return vehicle.mainViewImage;
+    }
+    if (vehicle.galleryImages && vehicle.galleryImages.length > 0) {
+      return vehicle.galleryImages[0];
+    }
+    return 'https://via.placeholder.com/300x200/E5E7EB/9CA3AF?text=Auto';
+  };
+
+  if (!vehicles || vehicles.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Vehículo a chequear</Text>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No hay vehículos disponibles</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Vehículo a chequear</Text>
       
-      <View style={styles.vehicleGrid}>
-        {vehicles.map((vehicle) => (
-          <TouchableOpacity
-            key={vehicle.id}
-            style={[
-              styles.vehicleCard,
-              selectedVehicle?.id === vehicle.id && styles.selectedCard
-            ]}
-            onPress={() => onSelectVehicle(vehicle)}
-          >
-            <View style={styles.statusBadge}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>{vehicle.status}</Text>
-            </View>
-            
-            <Image 
-              source={{ uri: vehicle.image }}
-              style={styles.vehicleImage}
-              resizeMode="cover"
-            />
-            
-            <Text style={styles.vehicleName}>{vehicle.name}</Text>
-            <Text style={styles.vehicleYear}>{vehicle.year}</Text>
-            
-            <View style={styles.vehicleDetails}>
-              <View style={styles.detailItem}>
-                <Text style={styles.detailIcon}>🏷️</Text>
-                <Text style={styles.detailText}>Disponible</Text>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.vehicleScrollContainer}
+      >
+        {vehicles.map((vehicle) => {
+          const statusStyle = getStatusColor(vehicle.status);
+          const isSelected = selectedVehicle?._id === vehicle._id;
+          
+          return (
+            <TouchableOpacity
+              key={vehicle._id}
+              style={[
+                styles.vehicleCard,
+                isSelected && styles.selectedCard
+              ]}
+              onPress={() => onSelectVehicle(vehicle)}
+            >
+              {/* Header con estado y checkbox */}
+              <View style={styles.cardHeader}>
+                <View style={[styles.statusBadge, { backgroundColor: statusStyle.backgroundColor }]}>
+                  <View style={[styles.statusDot, { backgroundColor: statusStyle.color }]} />
+                  <Text style={[styles.statusText, { color: statusStyle.color }]}>
+                    {vehicle.status}
+                  </Text>
+                </View>
+                
+                <View style={styles.checkboxContainer}>
+                  <Text style={styles.checkboxLabel}>Seleccionar</Text>
+                  <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                    {isSelected && (
+                      <Ionicons name="checkmark" size={16} color="white" />
+                    )}
+                  </View>
+                </View>
               </View>
-              <View style={styles.detailItem}>
-                <Text style={styles.detailIcon}>⚙️</Text>
-                <Text style={styles.detailText}>Automático</Text>
+              
+              {/* Imagen del vehículo */}
+              <View style={styles.imageContainer}>
+                <Image 
+                  source={{ uri: getVehicleImage(vehicle) }}
+                  style={styles.vehicleImage}
+                  resizeMode="cover"
+                />
               </View>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
+              
+              {/* Información del vehículo */}
+              <View style={styles.vehicleInfo}>
+                <Text style={styles.vehicleName} numberOfLines={2}>
+                  {vehicle.vehicleName}
+                </Text>
+                <Text style={styles.vehicleYear}>{vehicle.year}</Text>
+                
+                {/* Detalles con iconos */}
+                <View style={styles.vehicleDetails}>
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="people-outline" size={16} color="#6B7280" />
+                      <Text style={styles.detailText}>{vehicle.capacity} personas</Text>
+                    </View>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="settings-outline" size={16} color="#6B7280" />
+                      <Text style={styles.detailText}>Automático</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 };
@@ -81,15 +152,15 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 16,
   },
-  vehicleGrid: {
-    flexDirection: 'row',
-    gap: 12,
+  vehicleScrollContainer: {
+    paddingRight: 20,
   },
   vehicleCard: {
-    flex: 1,
+    width: 320,
     backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
+    marginRight: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
@@ -99,62 +170,110 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   selectedCard: {
-    borderColor: '#4A90E2',
+    borderColor: '#10B981',
     borderWidth: 2,
+    shadowColor: '#10B981',
+    shadowOpacity: 0.15,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
   statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
-    marginRight: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
   },
   statusText: {
-    fontSize: 12,
-    color: '#10B981',
+    fontSize: 14,
     fontWeight: '600',
   },
-  vehicleImage: {
-    width: '100%',
-    height: 80,
-    borderRadius: 12,
-    marginBottom: 12,
+  checkboxContainer: {
+    alignItems: 'center',
   },
-  vehicleName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#1F2937',
+  checkboxLabel: {
+    fontSize: 12,
+    color: '#9CA3AF',
     marginBottom: 4,
   },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  imageContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  vehicleImage: {
+    width: 280,
+    height: 160,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+  },
+  vehicleInfo: {
+    alignItems: 'center',
+  },
+  vehicleName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1E40AF',
+    textAlign: 'center',
+    marginBottom: 4,
+    lineHeight: 24,
+  },
   vehicleYear: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 12,
+    fontSize: 16,
+    color: '#9CA3AF',
+    marginBottom: 16,
   },
   vehicleDetails: {
-    gap: 4,
+    width: '100%',
+  },
+  detailRow: {
+    marginBottom: 8,
   },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  detailIcon: {
-    fontSize: 12,
-    marginRight: 6,
+    justifyContent: 'center',
   },
   detailText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6B7280',
+    marginLeft: 8,
+  },
+  emptyContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
   },
 });
 

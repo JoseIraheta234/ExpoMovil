@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,54 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const CustomCalendar = () => {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2025, 3)); // Abril 2025
+// Para emulador Android usa 10.0.2.2 en lugar de localhost
+const API_BASE_URL = 'http://10.0.2.2:4000/api';
+
+const CustomCalendar = ({ selectedVehicle, startDate, endDate, onDateSelect }) => {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [maintenances, setMaintenances] = useState([]);
+  const [reservations, setReservations] = useState([]); // Para futuro uso
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
   ];
 
-  const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  const dayNames = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+
+  // Cargar mantenimientos cuando cambie el vehículo seleccionado
+  useEffect(() => {
+    if (selectedVehicle) {
+      fetchMaintenancesForVehicle(selectedVehicle._id);
+    } else {
+      setMaintenances([]);
+    }
+  }, [selectedVehicle]);
+
+  const fetchMaintenancesForVehicle = async (vehicleId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/maintenances`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Filtrar mantenimientos solo para el vehículo seleccionado
+          const vehicleMaintenances = result.data.filter(
+            maintenance => maintenance.vehicleId._id === vehicleId
+          );
+          setMaintenances(vehicleMaintenances);
+        }
+      }
+    } catch (error) {
+      console.error('Error al cargar mantenimientos:', error);
+    }
+  };
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -46,15 +85,86 @@ const CustomCalendar = () => {
     setCurrentMonth(newMonth);
   };
 
+  const isDateInRange = (day, startDate, endDate) => {
+    if (!day || !startDate || !endDate) return false;
+    
+    const checkDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // Normalizar fechas a solo fecha (sin hora)
+    checkDate.setHours(0, 0, 0, 0);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    
+    return checkDate >= start && checkDate <= end;
+  };
+
+  const getMaintenanceForDate = (day) => {
+    if (!day) return null;
+    
+    const checkDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    
+    return maintenances.find(maintenance => {
+      const startDate = new Date(maintenance.startDate);
+      const endDate = new Date(maintenance.returnDate);
+      
+      return isDateInRange(day, startDate, endDate);
+    });
+  };
+
   const getDayStyle = (day) => {
     if (!day) return null;
     
-    // Días destacados según la imagen
-    if (day === 6) return styles.selectedStartDay; // Día de inicio
-    if (day === 7 || day === 8 || day === 9) return styles.selectedMiddleDay; // Días intermedios
-    if (day === 10) return styles.selectedEndDay; // Día final
-    if (day === 18) return styles.highlightedDay; // Día destacado en amarillo
-    if (day === 19 || day === 20 || day === 21 || day === 22) return styles.yellowDay; // Días en amarillo
+    // Verificar si es parte del rango de selección actual (nuevo mantenimiento)
+    const isInSelectedRange = isDateInRange(day, startDate, endDate);
+    const isStartDate = startDate && 
+      day === startDate.getDate() && 
+      currentMonth.getMonth() === startDate.getMonth() && 
+      currentMonth.getFullYear() === startDate.getFullYear();
+    const isEndDate = endDate && 
+      day === endDate.getDate() && 
+      currentMonth.getMonth() === endDate.getMonth() && 
+      currentMonth.getFullYear() === endDate.getFullYear();
+    
+    // Verificar si hay mantenimiento existente en esta fecha
+    const maintenance = getMaintenanceForDate(day);
+    
+    // Prioridad: selección actual (nuevo mantenimiento) > mantenimientos existentes
+    if (isInSelectedRange) {
+      if (isStartDate && isEndDate) {
+        return styles.selectedSingleDay;
+      } else if (isStartDate) {
+        return styles.selectedStartDay;
+      } else if (isEndDate) {
+        return styles.selectedEndDay;
+      } else {
+        return styles.selectedMiddleDay;
+      }
+    }
+    
+    // Si hay mantenimiento existente, mostrar en color de mantenimiento (amarillo/naranja)
+    if (maintenance) {
+      const maintenanceStart = new Date(maintenance.startDate);
+      const maintenanceEnd = new Date(maintenance.returnDate);
+      const isMaintenanceStart = day === maintenanceStart.getDate() && 
+        currentMonth.getMonth() === maintenanceStart.getMonth() && 
+        currentMonth.getFullYear() === maintenanceStart.getFullYear();
+      const isMaintenanceEnd = day === maintenanceEnd.getDate() && 
+        currentMonth.getMonth() === maintenanceEnd.getMonth() && 
+        currentMonth.getFullYear() === maintenanceEnd.getFullYear();
+      
+      // Usar un solo color para todos los mantenimientos
+      if (isMaintenanceStart && isMaintenanceEnd) {
+        return styles.maintenanceSingleDay;
+      } else if (isMaintenanceStart) {
+        return styles.maintenanceStartDay;
+      } else if (isMaintenanceEnd) {
+        return styles.maintenanceEndDay;
+      } else {
+        return styles.maintenanceMiddleDay;
+      }
+    }
     
     return styles.normalDay;
   };
@@ -62,10 +172,24 @@ const CustomCalendar = () => {
   const getDayTextStyle = (day) => {
     if (!day) return null;
     
-    if (day >= 6 && day <= 10) return styles.selectedDayText;
-    if (day >= 18 && day <= 22) return styles.yellowDayText;
+    const isInSelectedRange = isDateInRange(day, startDate, endDate);
+    const maintenance = getMaintenanceForDate(day);
+    
+    if (isInSelectedRange) {
+      return styles.selectedDayText;
+    }
+    
+    if (maintenance) {
+      return styles.maintenanceDayText;
+    }
     
     return styles.normalDayText;
+  };
+
+  const handleDayPress = (day) => {
+    // Deshabilitar la selección desde el calendario
+    // Solo mostrar información, no permitir editar
+    return;
   };
 
   const days = getDaysInMonth(currentMonth);
@@ -105,19 +229,31 @@ const CustomCalendar = () => {
       {/* Calendario */}
       <View style={styles.calendar}>
         {days.map((day, index) => (
-          <TouchableOpacity
+          <View
             key={index}
             style={[styles.day, getDayStyle(day)]}
-            disabled={!day}
           >
             {day && (
               <Text style={getDayTextStyle(day)}>
                 {day}
               </Text>
             )}
-          </TouchableOpacity>
+          </View>
         ))}
       </View>
+
+      {/* Leyenda */}
+      {selectedVehicle && (
+        <View style={styles.legend}>
+          <Text style={styles.legendTitle}>Leyenda:</Text>
+          <View style={styles.legendItems}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendColor, { backgroundColor: '#F59E0B' }]} />
+              <Text style={styles.legendText}>Mantenimiento</Text>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -176,26 +312,46 @@ const styles = StyleSheet.create({
   normalDay: {
     backgroundColor: 'transparent',
   },
+  
+  // Estilos para selección actual (nuevo mantenimiento - color amarillo)
   selectedStartDay: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#F59E0B',
     borderTopLeftRadius: 20,
     borderBottomLeftRadius: 20,
   },
   selectedMiddleDay: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#F59E0B',
   },
   selectedEndDay: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#F59E0B',
     borderTopRightRadius: 20,
     borderBottomRightRadius: 20,
   },
-  highlightedDay: {
-    backgroundColor: '#FDE047',
+  selectedSingleDay: {
+    backgroundColor: '#F59E0B',
     borderRadius: 20,
   },
-  yellowDay: {
-    backgroundColor: '#FDE047',
+  
+  // Estilos para mantenimiento (un solo color - amarillo/naranja)
+  maintenanceStartDay: {
+    backgroundColor: '#F59E0B',
+    borderTopLeftRadius: 20,
+    borderBottomLeftRadius: 20,
   },
+  maintenanceMiddleDay: {
+    backgroundColor: '#F59E0B',
+  },
+  maintenanceEndDay: {
+    backgroundColor: '#F59E0B',
+    borderTopRightRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  maintenanceSingleDay: {
+    backgroundColor: '#F59E0B',
+    borderRadius: 20,
+  },
+  
+  // Estilos de texto
   normalDayText: {
     fontSize: 16,
     color: '#374151',
@@ -205,10 +361,44 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
   },
-  yellowDayText: {
+  maintenanceDayText: {
     fontSize: 16,
-    color: '#92400E',
+    color: 'white',
     fontWeight: '600',
+  },
+  
+  // Leyenda
+  legend: {
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  legendTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  legendItems: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  legendColor: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 6,
+  },
+  legendText: {
+    fontSize: 12,
+    color: '#6B7280',
   },
 });
 
