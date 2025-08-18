@@ -17,14 +17,16 @@ import AddEmployeeModal from './Empleados/modals/AddEmployeeModal';
 import AddClientModal from './Clientes/modals/AddClientModal';
 import EmployeeDetailsModal from './Empleados/modals/EmployeeDetailsModal';
 import ClientDetailsModal from './Clientes/modals/ClientDetailsModal';
-const { empleados, addEmpleado, updateEmpleado, loading, error } = useFetchEmpleados();
-const { clientes, addCliente, updateCliente, loading: clientesLoading, error: clientesError } = useFetchClientes();
+import { useFetchEmpleados } from './Empleados/hooks/useFetchEmpleados'; 
+import { useFetchClientes } from './Clientes/hooks/useFetchClientes';
 
 const { width, height } = Dimensions.get('window');
 
 export default function Usuarios() {
-  const { empleados, addEmpleado, updateEmpleado } = useEmpleados();
-  const { clientes, addCliente, updateCliente } = useClientes();
+  // Move hooks INSIDE the component
+  const { empleados, addEmpleado, updateEmpleado, loading, error } = useFetchEmpleados();
+  const { clientes, addCliente, updateCliente, loading: clientesLoading, error: clientesError } = useFetchClientes();
+  
   const [activeTab, setActiveTab] = useState('empleados');
   const [modalType, setModalType] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);

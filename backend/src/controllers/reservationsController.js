@@ -27,11 +27,11 @@ reservationsController.getReservations = async (req, res) => {
         const reservations = await reservationsModel.find()
             .populate({
                 path: 'clientId',
-                select: 'nombre apellido telefono correo'
+                select: 'name lastName phone email' // Cambiado de 'nombre apellido' a 'name lastName'
             })
             .populate({
                 path: 'vehicleId',
-                select: 'nombreVehiculo imagenLateral placa modelo color anio capacidad'
+                select: 'vehicleName mainViewImage sideImage galleryImages plate model color year capacity dailyPrice' // Agregados todos los campos necesarios
             })
             .sort({ creationDate: -1 }); // Mostrar las más recientes primero
         
@@ -46,6 +46,7 @@ reservationsController.getReservations = async (req, res) => {
         }
 
         console.log('Reservas encontradas:', reservations.length);
+        console.log('Muestra de datos:', JSON.stringify(reservations[0], null, 2)); // Para debug
 
         res.status(200).json({
             success: true,
@@ -79,11 +80,11 @@ reservationsController.getReservationById = async (req, res) => {
         const reservation = await reservationsModel.findById(id)
             .populate({
                 path: 'clientId',
-                select: 'nombre apellido telefono correo'
+                select: 'name lastName phone email'
             })
             .populate({
                 path: 'vehicleId',
-                select: 'nombreVehiculo imagenLateral placa modelo color anio capacidad'
+                select: 'vehicleName mainViewImage sideImage galleryImages plate model color year capacity dailyPrice'
             });
         
         if (!reservation) {
@@ -102,6 +103,144 @@ reservationsController.getReservationById = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Error interno del servidor al obtener la reserva",
+            error: error.message
+        });
+    }
+};
+
+// Obtener reservas del usuario autenticado
+reservationsController.getUserReservations = async (req, res) => {
+    try {
+        const userId = req.user && req.user._id;
+        if (!userId) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'No autorizado' 
+            });
+        }
+        
+        // Validar que el userId sea válido
+        if (!isValidObjectId(userId)) {
+            return res.status(400).json({
+                success: false,
+                message: "ID de usuario no válido"
+            });
+        }
+        
+        const reservations = await reservationsModel.find({ clientId: userId })
+            .populate({
+                path: 'vehicleId',
+                select: 'vehicleName mainViewImage sideImage galleryImages plate model color year capacity dailyPrice',
+                options: { lean: true }
+            })
+            .lean()
+            .sort({ creationDate: -1 });
+        
+        // Adaptar la respuesta para que el frontend tenga acceso directo a los datos del auto y la imagen lateral
+        const reservationsAdapted = reservations.map(reservation => {
+            const vehiculo = reservation.vehicleId || {};
+            return {
+                ...reservation,
+                vehiculoNombre: vehiculo.vehicleName || '',
+                vehiculoModelo: vehiculo.model || '',
+                vehiculoColor: vehiculo.color || '',
+                vehiculoAnio: vehiculo.year || '',
+                vehiculoCapacidad: vehiculo.capacity || '',
+                vehiculoPlaca: vehiculo.plate || '',
+                imagenVehiculo: vehiculo.sideImage || vehiculo.mainViewImage || '',
+            };
+        });
+        
+        res.status(200).json({ 
+            success: true, 
+            data: reservationsAdapted,
+            count: reservationsAdapted.length
+        });
+    } catch (error) {
+        console.error('Error al obtener reservas del usuario:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor al obtener reservas',
+            error: error.message
+        });
+    }
+};
+
+// Get reservations by vehicle ID - Obtener reservas por ID de vehículo
+reservationsController.getReservationsByVehicleId = async (req, res) => {
+    try {
+        const { vehicleId } = req.params;
+
+        // Validar que el vehicleId sea válido
+        if (!isValidObjectId(vehicleId)) {
+            return res.status(400).json({
+                success: false,
+                message: "ID de vehículo no válido"
+            });
+        }
+
+        // Buscar reservas por vehicleId
+        const reservations = await reservationsModel.find({ vehicleId })
+            .populate({
+                path: 'clientId',
+                select: 'name lastName phone email'
+            })
+            .populate({
+                path: 'vehicleId',
+                select: 'vehicleName mainViewImage sideImage galleryImages plate model color year capacity dailyPrice'
+            })
+            .sort({ creationDate: -1 });
+        
+        res.status(200).json({
+            success: true,
+            data: reservations,
+            count: reservations.length
+        });
+    } catch (error) {
+        console.error('Error al obtener reservas por vehículo:', error);
+        res.status(500).json({
+            success: false,
+            message: "Error interno del servidor al obtener reservas por vehículo",
+            error: error.message
+        });
+    }
+};
+
+// Get reservations by status - Obtener reservas por estado
+reservationsController.getReservationsByStatus = async (req, res) => {
+    try {
+        const { status } = req.params;
+
+        // Validar que el estado sea válido
+        if (!['Pending', 'Active', 'Completed'].includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Estado no válido. Debe ser: Pending, Active o Completed"
+            });
+        }
+
+        // Buscar reservas por estado
+        const reservations = await reservationsModel.find({ status })
+            .populate({
+                path: 'clientId',
+                select: 'name lastName phone email'
+            })
+            .populate({
+                path: 'vehicleId',
+                select: 'vehicleName mainViewImage sideImage galleryImages plate model color year capacity dailyPrice'
+            })
+            .sort({ creationDate: -1 });
+        
+        res.status(200).json({
+            success: true,
+            data: reservations,
+            count: reservations.length
+        });
+    } catch (error) {
+        console.error('Error al obtener reservas por estado:', error);
+        res.status(500).json({
+            success: false,
+            message: "Error interno del servidor al obtener reservas por estado",
             error: error.message
         });
     }

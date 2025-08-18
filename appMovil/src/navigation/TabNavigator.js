@@ -7,6 +7,7 @@ import { Platform, View, Text } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
 import Marcas from '../screens/Marcas/Marcas';
 import MaintenanceScreen from '../screens/Maintenances/Maintenance';
+import ReservationScreen from '../screens/Reservations/Reservation'; // Nueva importación
 import ProfileScreen from '../screens/ProfileScreen';
 import Usuarios from '../screens/Usuarios/Usuarios';
 
@@ -25,6 +26,8 @@ const TabNavigator = () => {
             iconName = focused ? 'car-sport' : 'car-sport-outline';
           } else if (route.name === 'Maintenance') {
             iconName = focused ? 'construct' : 'construct-outline';
+          } else if (route.name === 'Reservations') {
+            iconName = focused ? 'calendar' : 'calendar-outline';
           } else if (route.name === 'Users') {
             iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Profile') {
@@ -81,6 +84,14 @@ const TabNavigator = () => {
         options={{
           tabBarLabel: 'Mantenimiento',
           title: 'Mantenimiento'
+        }}
+      />
+      <Tab.Screen
+        name="Reservations"
+        component={ReservationScreen}
+        options={{
+          tabBarLabel: 'Reservas',
+          title: 'Reservas'
         }}
       />
       <Tab.Screen
