@@ -17,8 +17,8 @@ import AddEmployeeModal from './Empleados/modals/AddEmployeeModal';
 import AddClientModal from './Clientes/modals/AddClientModal';
 import EmployeeDetailsModal from './Empleados/modals/EmployeeDetailsModal';
 import ClientDetailsModal from './Clientes/modals/ClientDetailsModal';
-import { useEmpleados } from './Empleados/hooks/useEmpleados';
-import { useClientes } from './Clientes/hooks/useClientes';
+const { empleados, addEmpleado, updateEmpleado, loading, error } = useFetchEmpleados();
+const { clientes, addCliente, updateCliente, loading: clientesLoading, error: clientesError } = useFetchClientes();
 
 const { width, height } = Dimensions.get('window');
 

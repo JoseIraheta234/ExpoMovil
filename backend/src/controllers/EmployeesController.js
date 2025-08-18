@@ -1,371 +1,504 @@
-// Procesar imagen si existe
-    let fotoURL = null;// Controlador para el modelo Empleados
-import EmpleadosModel from "../models/Employees.js";
+import employeesModel from "../models/Employees.js";
 import bcryptjs from "bcryptjs";
-import cloudinary from 'cloudinary';
+import { v2 as cloudinary } from "cloudinary";
+import fs from "fs";
 
-// CLOUDINARY SETUP - Configuración correcta
-// OJO: Se utilizara la parte de Cloudinary en el código no importandolo
-cloudinary.v2.config({
+// Configuración de Cloudinary
+cloudinary.config({
   cloud_name: process.env.CLOUDINARY_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true
 });
 
-// Función para subir buffer a Cloudinary
-async function uploadBufferToCloudinary(buffer, folder) {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.v2.uploader.upload_stream(
-      { 
-        folder: folder,
-        resource_type: 'image',
-        allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp']
-      },
-      (error, result) => {
-        if (error) {
-          console.error('Error en Cloudinary upload_stream:', error);
-          return reject(error);
-        }
-        console.log('Cloudinary upload exitoso:', result.public_id);
-        resolve(result.secure_url);
-      }
-    );
-    stream.end(buffer);
-  });
+// Función para eliminar archivo temporal
+function deleteTemporaryFile(filePath) {
+  try {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch (error) {
+    console.error('Error al eliminar archivo temporal:', error);
+  }
 }
 
-const EmpleadosController = {};
+// Función de validación de teléfono
+function validatePhone(phone) {
+  if (!phone) return { isValid: false, message: "El teléfono es requerido" };
+  
+  let cleanPhone = phone.toString().replace(/[^0-9]/g, '');
+  
+  if (cleanPhone.length === 8) {
+    cleanPhone = cleanPhone.slice(0, 4) + '-' + cleanPhone.slice(4);
+  }
+  
+  const phoneRegex = /^[267]\d{3}-\d{4}$/;
+  
+  if (!phoneRegex.test(cleanPhone)) {
+    return { 
+      isValid: false, 
+      message: 'El teléfono debe tener formato 0000-0000 e iniciar con 2, 6 o 7' 
+    };
+  }
+  
+  return { isValid: true, phone: cleanPhone };
+}
 
-// GET BY ID
-EmpleadosController.getEmpleadoById = async (req, res) => {
+// Función de validación de DUI
+function validateDUI(dui) {
+  if (!dui) return { isValid: false, message: "El DUI es requerido" };
+  
+  const duiRegex = /^\d{8}-\d{1}$/;
+  if (!duiRegex.test(dui)) {
+    return { 
+      isValid: false, 
+      message: 'El DUI debe tener formato 00000000-0' 
+    };
+  }
+  
+  return { isValid: true };
+}
+
+// Función de validación de email
+function validateEmail(email) {
+  if (!email) return { isValid: false, message: "El email es requerido" };
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return { 
+      isValid: false, 
+      message: 'El email debe tener un formato válido' 
+    };
+  }
+  
+  return { isValid: true };
+}
+
+const EmployeesController = {};
+
+// GET ALL EMPLOYEES
+EmployeesController.getEmployees = async (req, res) => {
   try {
-    const Empleado = await EmpleadosModel.findById(req.params.id);
-    if (!Empleado) {
-      return res.status(404).json({ message: "Empleado no encontrado" });
-    }
-    res.json(Empleado);
+    const employees = await employeesModel.find().sort({ createdAt: -1 });
+    
+    res.status(200).json({
+      message: "Empleados obtenidos exitosamente",
+      data: employees,
+      count: employees.length
+    });
   } catch (error) {
-    res.status(400).json({ message: "ID inválido o error en la consulta" });
+    console.error('Error al obtener empleados:', error);
+    res.status(500).json({ 
+      message: "Error interno del servidor al obtener empleados", 
+      error: error.message 
+    });
   }
 };
 
-EmpleadosController.RegisterEmpleado = async (req, res) => {
+// GET EMPLOYEE BY ID
+EmployeesController.getEmployeeById = async (req, res) => {
   try {
-    console.log('=== DATOS RECIBIDOS EN BACKEND ===');
-    console.log('Body:', req.body);
-    console.log('File:', req.file ? {
-      fieldname: req.file.fieldname,
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size,
-      buffer: req.file.buffer ? 'Buffer presente' : 'Sin buffer'
-    } : 'Sin archivo');
+    const { id } = req.params;
     
-    let { nombre, apellido, correoElectronico, contrasena, dui, telefono, rol } = req.body;
-    
-    // Validar campos requeridos
-    if (!nombre || !apellido || !correoElectronico || !contrasena || !dui || !telefono) {
-      console.log('❌ Faltan campos requeridos');
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({ 
-        message: "Todos los campos son requeridos" 
+        message: "ID de empleado inválido" 
       });
     }
     
-    // Verificar si ya existe el correo
-    const existsEmail = await EmpleadosModel.findOne({ correoElectronico });
-    if (existsEmail) {
+    const employee = await employeesModel.findById(id);
+    
+    if (!employee) {
+      return res.status(404).json({ 
+        message: "Empleado no encontrado" 
+      });
+    }
+    
+    res.status(200).json({
+      message: "Empleado obtenido exitosamente",
+      data: employee
+    });
+  } catch (error) {
+    console.error('Error al obtener empleado:', error);
+    res.status(500).json({ 
+      message: "Error interno del servidor", 
+      error: error.message 
+    });
+  }
+};
+
+// INSERT EMPLOYEE
+EmployeesController.insertEmployees = async (req, res) => {
+  try {
+    const { name, email, password, dui, phone, rol } = req.body;
+    
+    // Validaciones básicas
+    if (!name || !email || !password || !dui || !phone) {
+      if (req.file) deleteTemporaryFile(req.file.path);
       return res.status(400).json({ 
-        message: "Ya existe un empleado con ese correo electrónico" 
+        message: "Todos los campos obligatorios son requeridos: name, email, password, dui, phone" 
+      });
+    }
+    
+    // Validar email
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      if (req.file) deleteTemporaryFile(req.file.path);
+      return res.status(400).json({ message: emailValidation.message });
+    }
+    
+    // Validar teléfono
+    const phoneValidation = validatePhone(phone);
+    if (!phoneValidation.isValid) {
+      if (req.file) deleteTemporaryFile(req.file.path);
+      return res.status(400).json({ message: phoneValidation.message });
+    }
+    
+    // Validar DUI
+    const duiValidation = validateDUI(dui);
+    if (!duiValidation.isValid) {
+      if (req.file) deleteTemporaryFile(req.file.path);
+      return res.status(400).json({ message: duiValidation.message });
+    }
+    
+    // Validar contraseña
+    if (password.length < 6) {
+      if (req.file) deleteTemporaryFile(req.file.path);
+      return res.status(400).json({ 
+        message: "La contraseña debe tener al menos 6 caracteres" 
+      });
+    }
+    
+    // Verificar si ya existe el email
+    const existsEmail = await employeesModel.findOne({ email });
+    if (existsEmail) {
+      if (req.file) deleteTemporaryFile(req.file.path);
+      return res.status(409).json({ 
+        message: "Ya existe un empleado con ese email" 
       });
     }
     
     // Verificar si ya existe el DUI
-    const existsDUI = await EmpleadosModel.findOne({ dui });
+    const existsDUI = await employeesModel.findOne({ dui });
     if (existsDUI) {
-      return res.status(400).json({ 
+      if (req.file) deleteTemporaryFile(req.file.path);
+      return res.status(409).json({ 
         message: "Ya existe un empleado con ese DUI" 
       });
     }
     
     // Procesar imagen si existe
-    let fotoURL = "";
-    if (req.file && req.file.buffer) {
+    let photoURL = null;
+    if (req.file) {
       try {
-        console.log('📤 Subiendo imagen a Cloudinary...');
-        console.log('Tamaño del buffer:', req.file.buffer.length);
-        console.log('Tipo MIME:', req.file.mimetype);
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: "diunsolo/empleados",
+          allowed_formats: ["jpg", "png", "jpeg", "webp"]
+        });
         
-        fotoURL = await uploadBufferToCloudinary(
-          req.file.buffer,
-          'diunsolo/empleados'
-        );
-        
-        console.log('✅ Imagen subida exitosamente:', fotoURL);
+        photoURL = result.secure_url;
+        deleteTemporaryFile(req.file.path);
       } catch (uploadError) {
-        console.error('❌ Error subiendo imagen a Cloudinary:', uploadError);
-        // No fallar la creación del empleado si falla la imagen
-        console.log('⚠️ Continuando sin imagen...');
-      }
-    } else {
-      console.log('ℹ️ No se recibió imagen o no tiene buffer');
-    }
-    
-    // Normalizar teléfono
-    if (telefono) {
-      let clean = (telefono + '').replace(/[^0-9]/g, '');
-      if (clean.length === 8) {
-        telefono = clean.slice(0, 4) + '-' + clean.slice(4);
-      }
-      const regex = /^[267]\d{3}-\d{4}$/;
-      if (!regex.test(telefono)) {
-        return res.status(400).json({ 
-          message: 'El teléfono debe estar completo y en formato 0000-0000, iniciando con 2, 6 o 7' 
+        console.error('Error subiendo imagen a Cloudinary:', uploadError);
+        deleteTemporaryFile(req.file.path);
+        return res.status(500).json({
+          message: "Error al subir la imagen"
         });
       }
     }
-
+    
     // Encriptar contraseña
-    const passwordHash = await bcryptjs.hash(contrasena, 10);
-
-    // Crear empleado
-    const empleadoData = {
-      nombre, 
-      apellido, 
-      correoElectronico, 
-      contrasena: passwordHash,
-      dui, 
-      telefono, 
+    const passwordHash = await bcryptjs.hash(password, 10);
+    
+    // Crear datos del empleado
+    const employeeData = {
+      name,
+      email,
+      password: passwordHash,
+      dui,
+      phone: phoneValidation.phone,
       rol: rol || 'Empleado'
     };
-
-    if (fotoURL) {
-      empleadoData.foto = fotoURL;
-    }
-
-    console.log('💾 Datos del empleado a guardar:', {
-      ...empleadoData,
-      contrasena: '[OCULTA]',
-      foto: empleadoData.foto ? 'URL presente' : 'Sin foto'
-    });
-
-    const newEmpleado = new EmpleadosModel(empleadoData);
-    await newEmpleado.save();
-
-    console.log('✅ Empleado guardado exitosamente');
-
-    res.status(201).json({ 
-      message: "Nuevo empleado registrado", 
-      empleado: newEmpleado 
-    });
-  } catch (error) {
-    console.error('❌ Error al registrar empleado:', error);
     
+    if (photoURL) {
+      employeeData.photo = photoURL;
+    }
+    
+    const newEmployee = new employeesModel(employeeData);
+    await newEmployee.save();
+    
+    // Respuesta sin la contraseña
+    const responseEmployee = { ...newEmployee.toObject() };
+    delete responseEmployee.password;
+    delete responseEmployee.loginAttempts;
+    delete responseEmployee.lockTime;
+    
+    res.status(201).json({ 
+      message: "Empleado creado exitosamente", 
+      data: responseEmployee 
+    });
+    
+  } catch (error) {
+    console.error('Error al crear empleado:', error);
+    
+    // Eliminar archivo temporal en caso de error
+    if (req.file) deleteTemporaryFile(req.file.path);
+    
+    // Manejar errores de duplicados de MongoDB
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
       let friendlyField = field;
-      if (field === 'correoElectronico') friendlyField = 'correo electrónico';
+      if (field === 'email') friendlyField = 'email';
       if (field === 'dui') friendlyField = 'DUI';
       
-      return res.status(400).json({ 
+      return res.status(409).json({ 
         message: `Ya existe un empleado con ese ${friendlyField}` 
       });
     }
     
     res.status(500).json({ 
-      message: "Error al registrar empleado", 
+      message: "Error interno del servidor al crear empleado", 
       error: error.message 
     });
   }
 };
 
-// UPDATE
-EmpleadosController.updateEmpleado = async (req, res) => {
+// UPDATE EMPLOYEE
+EmployeesController.updateEmployees = async (req, res) => {
   try {
     const { id } = req.params;
-    let { nombre, apellido, correoElectronico, contrasena, dui, telefono, rol } = req.body;
+    const { name, email, password, dui, phone, rol } = req.body;
     
-    console.log('=== ACTUALIZANDO EMPLEADO ===');
-    console.log('ID:', id);
-    console.log('Body:', req.body);
-    console.log('File:', req.file ? {
-      fieldname: req.file.fieldname,
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size,
-      buffer: req.file.buffer ? 'Buffer presente' : 'Sin buffer'
-    } : 'Sin archivo');
-
-    // Verificar que el empleado existe
-    const currentEmpleado = await EmpleadosModel.findById(id);
-    if (!currentEmpleado) {
-      return res.status(404).json({ message: "Empleado no encontrado" });
+    // Validar ID
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      if (req.file) deleteTemporaryFile(req.file.path);
+      return res.status(400).json({ 
+        message: "ID de empleado inválido" 
+      });
     }
-
-    // Procesar imagen si existe
-    let fotoURL = undefined; // undefined para no actualizar si no se envía
-    if (req.file && req.file.buffer) {
-      try {
-        console.log('📤 Subiendo nueva imagen a Cloudinary...');
-        console.log('Tamaño del buffer:', req.file.buffer.length);
-        
-        fotoURL = await uploadBufferToCloudinary(
-          req.file.buffer,
-          'diunsolo/empleados'
-        );
-        
-        console.log('✅ Nueva imagen subida exitosamente:', fotoURL);
-      } catch (uploadError) {
-        console.error('❌ Error subiendo nueva imagen:', uploadError);
-        // No fallar la actualización si falla la imagen
-        console.log('⚠️ Continuando sin actualizar imagen...');
+    
+    // Verificar que el empleado existe
+    const currentEmployee = await employeesModel.findById(id);
+    if (!currentEmployee) {
+      if (req.file) deleteTemporaryFile(req.file.path);
+      return res.status(404).json({ 
+        message: "Empleado no encontrado" 
+      });
+    }
+    
+    // Validaciones solo si se proporcionan los campos
+    if (email) {
+      const emailValidation = validateEmail(email);
+      if (!emailValidation.isValid) {
+        if (req.file) deleteTemporaryFile(req.file.path);
+        return res.status(400).json({ message: emailValidation.message });
       }
     }
     
-    // Verificar duplicados si se está cambiando el correo
-    if (correoElectronico && correoElectronico !== currentEmpleado.correoElectronico) {
-      const existsEmail = await EmpleadosModel.findOne({ 
-        correoElectronico, 
+    if (phone) {
+      const phoneValidation = validatePhone(phone);
+      if (!phoneValidation.isValid) {
+        if (req.file) deleteTemporaryFile(req.file.path);
+        return res.status(400).json({ message: phoneValidation.message });
+      }
+    }
+    
+    if (dui) {
+      const duiValidation = validateDUI(dui);
+      if (!duiValidation.isValid) {
+        if (req.file) deleteTemporaryFile(req.file.path);
+        return res.status(400).json({ message: duiValidation.message });
+      }
+    }
+    
+    if (password && password.length < 6) {
+      if (req.file) deleteTemporaryFile(req.file.path);
+      return res.status(400).json({ 
+        message: "La contraseña debe tener al menos 6 caracteres" 
+      });
+    }
+    
+    // Verificar duplicados si se está cambiando el email
+    if (email && email !== currentEmployee.email) {
+      const existsEmail = await employeesModel.findOne({ 
+        email, 
         _id: { $ne: id } 
       });
       if (existsEmail) {
-        return res.status(400).json({ 
-          message: "Ya existe un empleado con ese correo electrónico" 
+        if (req.file) deleteTemporaryFile(req.file.path);
+        return res.status(409).json({ 
+          message: "Ya existe un empleado con ese email" 
         });
       }
     }
     
     // Verificar duplicados si se está cambiando el DUI
-    if (dui && dui !== currentEmpleado.dui) {
-      const existsDUI = await EmpleadosModel.findOne({ 
+    if (dui && dui !== currentEmployee.dui) {
+      const existsDUI = await employeesModel.findOne({ 
         dui, 
         _id: { $ne: id } 
       });
       if (existsDUI) {
-        return res.status(400).json({ 
+        if (req.file) deleteTemporaryFile(req.file.path);
+        return res.status(409).json({ 
           message: "Ya existe un empleado con ese DUI" 
         });
       }
     }
     
-    // Normalizar teléfono a 0000-0000 y validar
-    if (telefono) {
-      let clean = (telefono + '').replace(/[^0-9]/g, '');
-      if (clean.length === 8) {
-        telefono = clean.slice(0, 4) + '-' + clean.slice(4);
-      }
-      // Validación de formato y primer dígito
-      const regex = /^[267]\d{3}-\d{4}$/;
-      if (!regex.test(telefono)) {
-        return res.status(400).json({ 
-          message: 'El teléfono debe estar completo y en formato 0000-0000, iniciando con 2, 6 o 7' 
+    // Procesar imagen si existe
+    let photoURL = undefined;
+    if (req.file) {
+      try {
+        // Eliminar imagen anterior si existe
+        if (currentEmployee.photo) {
+          try {
+            const urlParts = currentEmployee.photo.split('/');
+            const fileWithExtension = urlParts.pop();
+            const publicId = urlParts.slice(-2).join('/') + '/' + fileWithExtension.split('.')[0];
+            await cloudinary.uploader.destroy(publicId);
+          } catch (deleteError) {
+            console.error('Error al eliminar imagen anterior:', deleteError);
+          }
+        }
+        
+        // Subir nueva imagen
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: "diunsolo/empleados",
+          allowed_formats: ["jpg", "png", "jpeg", "webp"]
+        });
+        
+        photoURL = result.secure_url;
+        deleteTemporaryFile(req.file.path);
+      } catch (uploadError) {
+        console.error('Error subiendo nueva imagen:', uploadError);
+        deleteTemporaryFile(req.file.path);
+        return res.status(500).json({
+          message: "Error al subir la imagen"
         });
       }
     }
-
+    
     // Preparar datos para actualizar
-    const updateData = {
-      nombre, 
-      apellido, 
-      correoElectronico, 
-      dui, 
-      telefono, 
-      rol
-    };
-
-    // Solo incluir contraseña si se proporciona y encriptarla
-    if (contrasena && contrasena.trim() !== '') {
-      const passwordHash = await bcryptjs.hash(contrasena, 10);
-      updateData.contrasena = passwordHash;
+    const updateData = {};
+    
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (dui) updateData.dui = dui;
+    if (phone) updateData.phone = validatePhone(phone).phone;
+    if (rol) updateData.rol = rol;
+    
+    // Solo actualizar contraseña si se proporciona
+    if (password && password.trim() !== '') {
+      const passwordHash = await bcryptjs.hash(password, 10);
+      updateData.password = passwordHash;
     }
-
-    // Solo incluir foto si se subió una nueva
-    if (fotoURL) {
-      updateData.foto = fotoURL;
+    
+    // Solo actualizar foto si se subió una nueva
+    if (photoURL) {
+      updateData.photo = photoURL;
     }
-
-    console.log('💾 Datos a actualizar:', {
-      ...updateData,
-      contrasena: updateData.contrasena ? '[ACTUALIZADA]' : '[SIN CAMBIOS]',
-      foto: updateData.foto ? 'URL nueva' : 'Sin cambios'
-    });
-
-    const updated = await EmpleadosModel.findByIdAndUpdate(
+    
+    const updatedEmployee = await employeesModel.findByIdAndUpdate(
       id,
       updateData,
       { new: true, runValidators: true }
     );
     
-    if (!updated) {
-      return res.status(404).json({ message: "Empleado no encontrado" });
+    if (!updatedEmployee) {
+      return res.status(404).json({ 
+        message: "Empleado no encontrado" 
+      });
     }
     
-    console.log('✅ Empleado actualizado exitosamente');
+    // Respuesta sin datos sensibles
+    const responseEmployee = { ...updatedEmployee.toObject() };
+    delete responseEmployee.password;
+    delete responseEmployee.loginAttempts;
+    delete responseEmployee.lockTime;
     
-    res.json({ 
-      message: "Empleado actualizado", 
-      empleado: updated 
+    res.status(200).json({ 
+      message: "Empleado actualizado exitosamente", 
+      data: responseEmployee 
     });
+    
   } catch (error) {
-    console.error('❌ Error al actualizar empleado:', error);
+    console.error('Error al actualizar empleado:', error);
+    
+    // Eliminar archivo temporal en caso de error
+    if (req.file) deleteTemporaryFile(req.file.path);
     
     // Manejar errores específicos de MongoDB
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
       let friendlyField = field;
-      if (field === 'correoElectronico') friendlyField = 'correo electrónico';
+      if (field === 'email') friendlyField = 'email';
       if (field === 'dui') friendlyField = 'DUI';
       
-      return res.status(400).json({ 
+      return res.status(409).json({ 
         message: `Ya existe un empleado con ese ${friendlyField}` 
       });
     }
     
     res.status(500).json({ 
-      message: "Error al actualizar empleado", 
+      message: "Error interno del servidor al actualizar empleado", 
       error: error.message 
     });
   }
 };
 
-// DELETE
-EmpleadosController.deleteEmpleado = async (req, res) => {
+// DELETE EMPLOYEE
+EmployeesController.deleteEmployees = async (req, res) => {
   try {
     const { id } = req.params;
     
-    console.log('🗑️ Eliminando empleado:', id);
-    
-    const deleted = await EmpleadosModel.findByIdAndDelete(id);
-    
-    if (!deleted) {
-      return res.status(404).json({ message: "Empleado no encontrado" });
+    // Validar ID
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ 
+        message: "ID de empleado inválido" 
+      });
     }
     
-    console.log('✅ Empleado eliminado exitosamente');
+    // Buscar empleado antes de eliminar para obtener la imagen
+    const employeeToDelete = await employeesModel.findById(id);
     
-    res.json({ message: "Empleado eliminado" });
+    if (!employeeToDelete) {
+      return res.status(404).json({ 
+        message: "Empleado no encontrado" 
+      });
+    }
+    
+    // Eliminar imagen de Cloudinary si existe
+    if (employeeToDelete.photo) {
+      try {
+        const urlParts = employeeToDelete.photo.split('/');
+        const fileWithExtension = urlParts.pop();
+        const publicId = urlParts.slice(-2).join('/') + '/' + fileWithExtension.split('.')[0];
+        await cloudinary.uploader.destroy(publicId);
+      } catch (deleteError) {
+        console.error('Error al eliminar imagen de Cloudinary:', deleteError);
+      }
+    }
+    
+    // Eliminar empleado de la base de datos
+    const deletedEmployee = await employeesModel.findByIdAndDelete(id);
+    
+    res.status(200).json({ 
+      message: "Empleado eliminado exitosamente",
+      data: {
+        id: deletedEmployee._id,
+        name: deletedEmployee.name,
+        email: deletedEmployee.email
+      }
+    });
+    
   } catch (error) {
-    console.error('❌ Error al eliminar empleado:', error);
+    console.error('Error al eliminar empleado:', error);
     res.status(500).json({ 
-      message: "Error al eliminar empleado", 
+      message: "Error interno del servidor al eliminar empleado", 
       error: error.message 
     });
   }
 };
 
-// GET ALL
-EmpleadosController.getEmpleados = async (req, res) => {
-  try {
-    console.log('📋 Obteniendo todos los empleados');
-    const Empleados = await EmpleadosModel.find().sort({ createdAt: -1 });
-    console.log(`✅ Se encontraron ${Empleados.length} empleados`);
-    res.json(Empleados);
-  } catch (error) {
-    console.error('❌ Error al obtener empleados:', error);
-    res.status(500).json({ 
-      message: "Error al obtener empleados", 
-      error: error.message 
-    });
-  }
-};
-
-export default EmpleadosController;
+export default EmployeesController;
