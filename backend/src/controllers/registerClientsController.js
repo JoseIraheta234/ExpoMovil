@@ -6,7 +6,7 @@ import cloudinary from 'cloudinary';
 
 import clientsModel from "../models/Clients.js";
 import { config } from "../config.js";
-import { sendVerificationEmail } from "../utils/mailVerifyAccount.js";
+//import { sendVerificationEmail } from "../utils/mailVerifyAccount.js";
 
 //Cloudinary config
 cloudinary.v2.config({
