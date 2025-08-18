@@ -11,9 +11,11 @@ import {
   Platform,
   Dimensions,
   Alert,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
+import * as ImagePicker from 'expo-image-picker';
 
 const { width, height } = Dimensions.get('window');
 
@@ -25,6 +27,7 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
     dui: '',
     telefono: '',
     rol: 'Empleado',
+    foto: '',
   });
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -34,6 +37,70 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
       ...prev,
       [field]: value,
     }));
+  };
+
+  const pickImage = async () => {
+    // Pedir permisos
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (permissionResult.granted === false) {
+      Alert.alert('Permisos necesarios', 'Se necesitan permisos para acceder a la galería de fotos.');
+      return;
+    }
+
+    // Abrir selector de imágenes
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      handleInputChange('foto', result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    // Pedir permisos de cámara
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    
+    if (permissionResult.granted === false) {
+      Alert.alert('Permisos necesarios', 'Se necesitan permisos para acceder a la cámara.');
+      return;
+    }
+
+    // Abrir cámara
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      handleInputChange('foto', result.assets[0].uri);
+    }
+  };
+
+  const showImageOptions = () => {
+    Alert.alert(
+      'Seleccionar imagen',
+      'Elige una opción',
+      [
+        {
+          text: 'Cámara',
+          onPress: takePhoto,
+        },
+        {
+          text: 'Galería',
+          onPress: pickImage,
+        },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+      ]
+    );
   };
 
   const handleSave = () => {
@@ -59,6 +126,7 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
       dui: '',
       telefono: '',
       rol: 'Empleado',
+      foto: '',
     });
     onClose();
   };
@@ -71,6 +139,7 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
       dui: '',
       telefono: '',
       rol: 'Empleado',
+      foto: '',
     });
     onClose();
   };
@@ -166,9 +235,16 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
               <View style={styles.iconContainer}>
-                <View style={styles.cameraIcon}>
-                  <Ionicons name="camera" size={32} color="#5B9BD5" />
-                </View>
+                <TouchableOpacity 
+                  style={styles.photoUploadButton}
+                  onPress={showImageOptions}
+                >
+                  {formData.foto ? (
+                    <Image source={{ uri: formData.foto }} style={styles.photoPreview} />
+                  ) : (
+                    <Ionicons name="camera" size={32} color="#5B9BD5" />
+                  )}
+                </TouchableOpacity>
               </View>
 
               <View style={styles.formContainer}>
@@ -307,7 +383,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 30,
   },
-  cameraIcon: {
+  photoUploadButton: {
     width: 80,
     height: 80,
     borderRadius: 40,
@@ -317,6 +393,13 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  photoPreview: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    resizeMode: 'cover',
   },
   formContainer: {
     marginBottom: 20,

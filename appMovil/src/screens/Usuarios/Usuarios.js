@@ -64,11 +64,18 @@ export default function Usuarios() {
     let users = activeTab === 'empleados' ? empleados : clientes;
     
     if (searchQuery.trim()) {
-      users = users.filter(user =>
-        user.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (user.rol && user.rol.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
+      users = users.filter(user => {
+        if (activeTab === 'empleados') {
+          return user.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                 user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                 (user.rol && user.rol.toLowerCase().includes(searchQuery.toLowerCase()));
+        } else {
+          // Para clientes, buscar en name, lastName y email
+          const fullName = `${user.name || ''} ${user.lastName || ''}`.toLowerCase();
+          return fullName.includes(searchQuery.toLowerCase()) ||
+                 user.email.toLowerCase().includes(searchQuery.toLowerCase());
+        }
+      });
     }
     
     return users;

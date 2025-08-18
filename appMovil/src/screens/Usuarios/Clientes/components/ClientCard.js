@@ -12,13 +12,14 @@ import { Ionicons } from '@expo/vector-icons';
 const { width } = Dimensions.get('window');
 
 export default function ClientCard({ cliente, onDetails }) {
-  const getInitials = (nombre) => {
-    return nombre
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
-      .substring(0, 2)
-      .toUpperCase();
+  const getInitials = (name, lastName) => {
+    const firstName = name || '';
+    const lastNameInitial = lastName || '';
+    return (firstName.charAt(0) + lastNameInitial.charAt(0)).toUpperCase();
+  };
+
+  const getFullName = (name, lastName) => {
+    return `${name || ''} ${lastName || ''}`.trim();
   };
 
   return (
@@ -28,13 +29,15 @@ export default function ClientCard({ cliente, onDetails }) {
           <Image source={{ uri: cliente.foto }} style={styles.avatar} />
         ) : (
           <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>{getInitials(cliente.nombre)}</Text>
+            <Text style={styles.avatarText}>
+              {getInitials(cliente.name, cliente.lastName)}
+            </Text>
           </View>
         )}
       </View>
       
       <Text style={styles.clientName} numberOfLines={1}>
-        {cliente.nombre}
+        {getFullName(cliente.name, cliente.lastName)}
       </Text>
 
       <TouchableOpacity

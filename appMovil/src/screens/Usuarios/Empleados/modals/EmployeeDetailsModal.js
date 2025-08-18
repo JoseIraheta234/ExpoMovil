@@ -11,9 +11,11 @@ import {
   Platform,
   Dimensions,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
+import * as ImagePicker from 'expo-image-picker';
 
 const { width, height } = Dimensions.get('window');
 
@@ -25,6 +27,7 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
     dui: '',
     telefono: '',
     rol: 'Empleado',
+    foto: '',
   });
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
@@ -37,6 +40,7 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
         dui: empleado.dui || '',
         telefono: empleado.telefono || '',
         rol: empleado.rol || 'Empleado',
+        foto: empleado.foto || '',
       });
     }
   }, [empleado]);
@@ -46,6 +50,70 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
       ...prev,
       [field]: value,
     }));
+  };
+
+  const pickImage = async () => {
+    // Pedir permisos
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (permissionResult.granted === false) {
+      Alert.alert('Permisos necesarios', 'Se necesitan permisos para acceder a la galería de fotos.');
+      return;
+    }
+
+    // Abrir selector de imágenes
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      handleInputChange('foto', result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    // Pedir permisos de cámara
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    
+    if (permissionResult.granted === false) {
+      Alert.alert('Permisos necesarios', 'Se necesitan permisos para acceder a la cámara.');
+      return;
+    }
+
+    // Abrir cámara
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      handleInputChange('foto', result.assets[0].uri);
+    }
+  };
+
+  const showImageOptions = () => {
+    Alert.alert(
+      'Seleccionar imagen',
+      'Elige una opción',
+      [
+        {
+          text: 'Cámara',
+          onPress: takePhoto,
+        },
+        {
+          text: 'Galería',
+          onPress: pickImage,
+        },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+      ]
+    );
   };
 
   const handleUpdate = () => {
@@ -121,12 +189,30 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
               <View style={styles.avatarContainer}>
-                {empleado?.foto ? (
-                  <Image source={{ uri: empleado.foto }} style={styles.avatar} />
+                {isEditing ? (
+                  <TouchableOpacity 
+                    style={styles.avatarButton}
+                    onPress={showImageOptions}
+                  >
+                    {formData.foto ? (
+                      <Image source={{ uri: formData.foto }} style={styles.avatar} />
+                    ) : (
+                      <View style={styles.avatarPlaceholder}>
+                        <Text style={styles.avatarText}>{getInitials(empleado?.nombre || '')}</Text>
+                      </View>
+                    )}
+                    <View style={styles.cameraOverlay}>
+                      <Ionicons name="camera" size={20} color="white" />
+                    </View>
+                  </TouchableOpacity>
                 ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarText}>{getInitials(empleado?.nombre || '')}</Text>
-                  </View>
+                  formData.foto ? (
+                    <Image source={{ uri: formData.foto }} style={styles.avatar} />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <Text style={styles.avatarText}>{getInitials(empleado?.nombre || '')}</Text>
+                    </View>
+                  )
                 )}
               </View>
 
@@ -277,6 +363,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 30,
   },
+  avatarButton: {
+    position: 'relative',
+  },
   avatar: {
     width: 100,
     height: 100,
@@ -295,6 +384,19 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     color: '#666',
+  },
+  cameraOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#5B9BD5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
   },
   formContainer: {
     marginBottom: 20,

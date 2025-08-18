@@ -11,21 +11,31 @@ import {
   Platform,
   Dimensions,
   Alert,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 
 const { width, height } = Dimensions.get('window');
 
 export default function AddClientModal({ visible, onClose, onConfirm }) {
   const [formData, setFormData] = useState({
-    nombre: '',
+    name: '',
+    lastName: '',
     email: '',
-    telefono: '',
-    dui: '',
-    direccion: '',
+    password: '',
+    phone: '',
+    birthDate: new Date(),
+    licenseFront: '',
+    licenseBack: '',
+    passportFront: '',
+    passportBack: '',
+    foto: '',
   });
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -34,11 +44,94 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
     }));
   };
 
+  const pickImage = async (field) => {
+    // Pedir permisos
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (permissionResult.granted === false) {
+      Alert.alert('Permisos necesarios', 'Se necesitan permisos para acceder a la galería de fotos.');
+      return;
+    }
+
+    // Abrir selector de imágenes
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: field === 'foto' ? [1, 1] : [4, 3],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      handleInputChange(field, result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async (field) => {
+    // Pedir permisos de cámara
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    
+    if (permissionResult.granted === false) {
+      Alert.alert('Permisos necesarios', 'Se necesitan permisos para acceder a la cámara.');
+      return;
+    }
+
+    // Abrir cámara
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: field === 'foto' ? [1, 1] : [4, 3],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      handleInputChange(field, result.assets[0].uri);
+    }
+  };
+
+  const showImageOptions = (field) => {
+    Alert.alert(
+      'Seleccionar imagen',
+      'Elige una opción',
+      [
+        {
+          text: 'Cámara',
+          onPress: () => takePhoto(field),
+        },
+        {
+          text: 'Galería',
+          onPress: () => pickImage(field),
+        },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setFormData(prev => ({
+        ...prev,
+        birthDate: selectedDate,
+      }));
+    }
+  };
+
+  const formatDate = (date) => {
+    return date.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
   const handleSave = () => {
-    if (formData.nombre.trim() && formData.email.trim()) {
+    if (formData.name.trim() && formData.lastName.trim() && formData.email.trim() && 
+        formData.password.trim() && formData.phone.trim()) {
       setShowConfirmationModal(true);
     } else {
-      Alert.alert('Error', 'Por favor completa los campos obligatorios');
+      Alert.alert('Error', 'Por favor completa todos los campos obligatorios (nombre, apellido, email, contraseña y teléfono)');
     }
   };
 
@@ -48,25 +141,37 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
     setShowSuccessModal(true);
   };
 
-  const handleSuccessClose = () => {
+  const   handleSuccessClose = () => {
     setShowSuccessModal(false);
     setFormData({
-      nombre: '',
+      name: '',
+      lastName: '',
       email: '',
-      telefono: '',
-      dui: '',
-      direccion: '',
+      password: '',
+      phone: '',
+      birthDate: new Date(),
+      licenseFront: '',
+      licenseBack: '',
+      passportFront: '',
+      passportBack: '',
+      foto: '',
     });
     onClose();
   };
 
   const handleClose = () => {
     setFormData({
-      nombre: '',
+      name: '',
+      lastName: '',
       email: '',
-      telefono: '',
-      dui: '',
-      direccion: '',
+      password: '',
+      phone: '',
+      birthDate: new Date(),
+      licenseFront: '',
+      licenseBack: '',
+      passportFront: '',
+      passportBack: '',
+      foto: '',
     });
     onClose();
   };
@@ -160,25 +265,45 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
               <View style={styles.iconContainer}>
-                <View style={styles.cameraIcon}>
-                  <Ionicons name="camera" size={32} color="#5B9BD5" />
-                </View>
+                <TouchableOpacity 
+                  style={styles.photoUploadButton}
+                  onPress={() => showImageOptions('foto')}
+                >
+                  {formData.foto ? (
+                    <Image source={{ uri: formData.foto }} style={styles.photoPreview} />
+                  ) : (
+                    <Ionicons name="camera" size={32} color="#5B9BD5" />
+                  )}
+                </TouchableOpacity>
               </View>
 
               <View style={styles.formContainer}>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Nombre del cliente</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="María González"
-                    value={formData.nombre}
-                    onChangeText={(value) => handleInputChange('nombre', value)}
-                    autoCapitalize="words"
-                  />
+                <View style={styles.row}>
+                  <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
+                    <Text style={styles.label}>Nombre *</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="María"
+                      value={formData.name}
+                      onChangeText={(value) => handleInputChange('name', value)}
+                      autoCapitalize="words"
+                    />
+                  </View>
+
+                  <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
+                    <Text style={styles.label}>Apellido *</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="González"
+                      value={formData.lastName}
+                      onChangeText={(value) => handleInputChange('lastName', value)}
+                      autoCapitalize="words"
+                    />
+                  </View>
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Correo electrónico</Text>
+                  <Text style={styles.label}>Correo electrónico *</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="maria.gonzalez@email.com"
@@ -189,40 +314,106 @@ export default function AddClientModal({ visible, onClose, onConfirm }) {
                   />
                 </View>
 
-                <View style={styles.row}>
-                  <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
-                    <Text style={styles.label}>DUI</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="123456789-0"
-                      value={formData.dui}
-                      onChangeText={(value) => handleInputChange('dui', value)}
-                    />
-                  </View>
-
-                  <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
-                    <Text style={styles.label}>Teléfono</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="1234-5678"
-                      value={formData.telefono}
-                      onChangeText={(value) => handleInputChange('telefono', value)}
-                      keyboardType="phone-pad"
-                    />
-                  </View>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Contraseña *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="••••••••••••"
+                    value={formData.password}
+                    onChangeText={(value) => handleInputChange('password', value)}
+                    secureTextEntry={true}
+                  />
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Dirección</Text>
+                  <Text style={styles.label}>Teléfono *</Text>
                   <TextInput
-                    style={[styles.input, { height: 80 }]}
-                    placeholder="Dirección completa del cliente"
-                    value={formData.direccion}
-                    onChangeText={(value) => handleInputChange('direccion', value)}
-                    multiline={true}
-                    numberOfLines={3}
-                    textAlignVertical="top"
+                    style={styles.input}
+                    placeholder="1234-5678"
+                    value={formData.phone}
+                    onChangeText={(value) => handleInputChange('phone', value)}
+                    keyboardType="phone-pad"
                   />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Fecha de nacimiento *</Text>
+                  <TouchableOpacity
+                    style={styles.dateInput}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <Text style={styles.dateText}>
+                      {formatDate(formData.birthDate)}
+                    </Text>
+                    <Ionicons name="calendar" size={20} color="#666" />
+                  </TouchableOpacity>
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={formData.birthDate}
+                      mode="date"
+                      display="default"
+                      onChange={handleDateChange}
+                      maximumDate={new Date()}
+                    />
+                  )}
+                </View>
+
+                <Text style={styles.sectionTitle}>Documentos (Opcional)</Text>
+
+                <View style={styles.row}>
+                  <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
+                    <Text style={styles.label}>Licencia (Frente)</Text>
+                    <TouchableOpacity 
+                      style={styles.documentButton}
+                      onPress={() => showImageOptions('licenseFront')}
+                    >
+                      <Ionicons name="camera" size={20} color="#5B9BD5" />
+                      <Text style={styles.documentButtonText}>
+                        {formData.licenseFront ? 'Cambiar foto' : 'Subir foto'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
+                    <Text style={styles.label}>Licencia (Reverso)</Text>
+                    <TouchableOpacity 
+                      style={styles.documentButton}
+                      onPress={() => showImageOptions('licenseBack')}
+                    >
+                      <Ionicons name="camera" size={20} color="#5B9BD5" />
+                      <Text style={styles.documentButtonText}>
+                        {formData.licenseBack ? 'Cambiar foto' : 'Subir foto'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.row}>
+                  <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
+                    <Text style={styles.label}>Pasaporte (Frente)</Text>
+                    <TouchableOpacity 
+                      style={styles.documentButton}
+                      onPress={() => showImageOptions('passportFront')}
+                    >
+                      <Ionicons name="camera" size={20} color="#5B9BD5" />
+                      <Text style={styles.documentButtonText}>
+                        {formData.passportFront ? 'Cambiar foto' : 'Subir foto'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
+                    <Text style={styles.label}>Pasaporte (Reverso)</Text>
+                    <TouchableOpacity 
+                      style={styles.documentButton}
+                      onPress={() => showImageOptions('passportBack')}
+                    >
+                      <Ionicons name="camera" size={20} color="#5B9BD5" />
+                      <Text style={styles.documentButtonText}>
+                        {formData.passportBack ? 'Cambiar foto' : 'Subir foto'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             </ScrollView>
@@ -288,7 +479,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 30,
   },
-  cameraIcon: {
+  photoUploadButton: {
     width: 80,
     height: 80,
     borderRadius: 40,
@@ -298,6 +489,13 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  photoPreview: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    resizeMode: 'cover',
   },
   formContainer: {
     marginBottom: 20,
@@ -322,6 +520,45 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FAFAFA',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dateText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  documentButton: {
+    borderWidth: 1,
+    borderColor: '#5B9BD5',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#F0F8FF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  documentButtonText: {
+    color: '#5B9BD5',
+    fontSize: 14,
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
