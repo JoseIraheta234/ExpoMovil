@@ -21,9 +21,16 @@ const ReservationCard = ({
     });
   };
 
+  const formatTime = (date) => {
+    return new Date(date).toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   const getVehicleImage = () => {
     if (!reservation.vehicleId) {
-      return 'https://via.placeholder.com/160x100/E5E7EB/9CA3AF?text=Sin+Vehiculo';
+      return 'https://via.placeholder.com/220x140/E5E7EB/9CA3AF?text=Sin+Vehiculo';
     }
     
     // PRIORIDAD: Usar sideImage primero
@@ -39,7 +46,7 @@ const ReservationCard = ({
       return reservation.vehicleId.galleryImages[0];
     }
     // Placeholder como último recurso
-    return 'https://via.placeholder.com/160x100/E5E7EB/9CA3AF?text=Auto';
+    return 'https://via.placeholder.com/220x140/E5E7EB/9CA3AF?text=Auto';
   };
 
   const getVehicleName = () => {
@@ -47,6 +54,14 @@ const ReservationCard = ({
       return 'Vehículo no asignado';
     }
     return reservation.vehicleId?.vehicleName || 'Vehículo sin nombre';
+  };
+
+  const getVehicleModel = () => {
+    if (!reservation.vehicleId) {
+      return '';
+    }
+    const model = reservation.vehicleId?.model || '';
+    return model ? `(${model})` : '';
   };
 
   const getClientName = () => {
@@ -61,77 +76,80 @@ const ReservationCard = ({
     return 'Cliente sin nombre';
   };
 
-  const getStatusColor = (status) => {
+  const getStatusBadgeStyle = (status) => {
     switch (status) {
       case 'Active':
-        return '#10B981'; // Verde
+        return {
+          backgroundColor: 'rgba(16, 185, 129, 0.15)',
+          textColor: '#10B981'
+        };
       case 'Pending':
-        return '#F59E0B'; // Amarillo/Naranja
+        return {
+          backgroundColor: 'rgba(251, 146, 60, 0.15)',
+          textColor: '#F59E0B'
+        };
       case 'Completed':
-        return '#3B82F6'; // Azul
+        return {
+          backgroundColor: 'rgba(59, 130, 246, 0.15)',
+          textColor: '#3B82F6'
+        };
       default:
-        return '#6B7280'; // Gris
+        return {
+          backgroundColor: 'rgba(107, 114, 128, 0.15)',
+          textColor: '#6B7280'
+        };
     }
-  };
-
-  const getDaysDifference = () => {
-    const start = new Date(reservation.startDate);
-    const end = new Date(reservation.returnDate);
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
   };
 
   const status = reservation.status;
   const statusText = getStatusText(reservation.status);
-  const statusColor = getStatusColor(status);
+  const badgeStyle = getStatusBadgeStyle(status);
 
   return (
     <View style={styles.container}>
-      {/* Header con nombre del cliente */}
-      <View style={styles.header}>
-        <View style={styles.clientInfo}>
-          <Text style={styles.clientName}>{getClientName()}</Text>
-          <Text style={styles.reservationLabel}>Reservación múltiple</Text>
-        </View>
-        <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
+      {/* Status Badge - Dinámico basado en el estado de la BD */}
+      <View style={[styles.statusBadge, { backgroundColor: badgeStyle.backgroundColor }]}>
+        <Text style={[styles.statusText, { color: badgeStyle.textColor }]}>{statusText}</Text>
       </View>
 
-      {/* Contenido principal */}
-      <View style={styles.content}>
-        {/* Imagen del vehículo */}
-        <Image
-          source={{ uri: getVehicleImage() }}
-          style={styles.vehicleImage}
-          resizeMode="cover"
-        />
-        
-        {/* Información de la reserva */}
-        <View style={styles.reservationInfo}>
-          <Text style={styles.vehicleName}>{getVehicleName()}</Text>
+      {/* Main Content Container */}
+      <View style={styles.contentContainer}>
+        {/* Left Side - Client Info and Dates */}
+        <View style={styles.leftContent}>
+          {/* Client Name */}
+          <Text style={styles.clientName}>
+            {getClientName()}
+          </Text>
           
-          {/* Fechas */}
-          <View style={styles.dateContainer}>
+          {/* Vehicle Info */}
+          <Text style={styles.vehicleInfo}>
+            {getVehicleName()} {getVehicleModel()}
+          </Text>
+          
+          {/* Dates with Icons */}
+          <View style={styles.datesContainer}>
             <View style={styles.dateItem}>
-              <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+              <Ionicons name="calendar-outline" size={18} color="#9CA3AF" />
               <Text style={styles.dateText}>
-                {formatDate(reservation.startDate)} - {formatDate(reservation.returnDate)}
+                {formatDate(reservation.startDate)}
+              </Text>
+            </View>
+            <View style={styles.dateItem}>
+              <Ionicons name="time-outline" size={18} color="#9CA3AF" />
+              <Text style={styles.dateText}>
+                {formatDate(reservation.returnDate)}
               </Text>
             </View>
           </View>
+        </View>
 
-          {/* Precio y días */}
-          <View style={styles.priceInfo}>
-            <Text style={styles.price}>${reservation.pricePerDay}/día</Text>
-            <Text style={styles.days}>• {getDaysDifference()} día{getDaysDifference() !== 1 ? 's' : ''}</Text>
-          </View>
-
-          {/* Estado */}
-          <View style={styles.statusContainer}>
-            <Text style={[styles.statusText, { color: statusColor }]}>
-              {statusText}
-            </Text>
-          </View>
+        {/* Right Side - Vehicle Image */}
+        <View style={styles.rightContent}>
+          <Image
+            source={{ uri: getVehicleImage() }}
+            style={styles.vehicleImage}
+            resizeMode="cover"
+          />
         </View>
       </View>
     </View>
@@ -141,101 +159,78 @@ const ReservationCard = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: 'white',
-    borderRadius: 16,
+    borderRadius: 24,
+    padding: 24,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    overflow: 'hidden',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+    minHeight: 200,
   },
-  header: {
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  statusText: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  contentContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#F8FAFC',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  clientInfo: {
+    alignItems: 'flex-start',
     flex: 1,
+  },
+  leftContent: {
+    flex: 1,
+    paddingRight: 20,
+  },
+  rightContent: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 220,
+    height: 140,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
   },
   clientName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
-    marginBottom: 2,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1E3A8A',
+    marginBottom: 6,
+    lineHeight: 30,
   },
-  reservationLabel: {
-    fontSize: 12,
-    color: '#64748B',
+  vehicleInfo: {
+    fontSize: 16,
+    color: '#0EA5E9',
     fontWeight: '500',
+    marginBottom: 24,
   },
-  statusIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  content: {
-    flexDirection: 'row',
-    padding: 16,
-    alignItems: 'center',
-  },
-  vehicleImage: {
-    width: 100,
-    height: 70,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
-  },
-  reservationInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  vehicleName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
-    marginBottom: 8,
-  },
-  dateContainer: {
-    marginBottom: 8,
+  datesContainer: {
+    gap: 12,
   },
   dateItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   dateText: {
-    marginLeft: 6,
-    fontSize: 13,
-    color: '#64748B',
+    marginLeft: 12,
+    fontSize: 15,
+    color: '#9CA3AF',
     fontWeight: '500',
   },
-  priceInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  price: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#059669',
-  },
-  days: {
-    fontSize: 13,
-    color: '#64748B',
-    marginLeft: 8,
-  },
-  statusContainer: {
-    alignSelf: 'flex-start',
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  vehicleImage: {
+    width: 220,
+    height: 140,
+    borderRadius: 0,
+    backgroundColor: 'transparent',
   },
 });
 
