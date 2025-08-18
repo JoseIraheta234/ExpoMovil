@@ -2,8 +2,8 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TabNavigator from './TabNavigator';
 
-// Pantallas modales o de stack que van por encima del TabNavigator
-// Aquí puedes agregar pantallas como AddMaintenance, EditMaintenance, etc.
+// Importar la nueva pantalla
+import AddMaintenanceScreen from '../screens/Maintenances/AddMaintenance';
 
 const Stack = createNativeStackNavigator();
 
@@ -20,20 +20,18 @@ const StackNavigator = () => {
         component={TabNavigator}
       />
       
-      {/* Aquí puedes agregar pantallas modales o de stack */}
-      {/* 
+      {/* Pantalla para agregar mantenimiento */}
       <Stack.Screen
         name="AddMaintenance"
         component={AddMaintenanceScreen}
         options={{
-          headerShown: true,
-          title: 'Agregar Mantenimiento',
-          presentation: 'modal'
+          headerShown: false,
+          presentation: 'card',
+          gestureEnabled: true,
         }}
       />
-      */}
     </Stack.Navigator>
   );
 };
 
-export default StackNavigator;  
+export default StackNavigator;

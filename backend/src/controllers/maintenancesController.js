@@ -21,16 +21,26 @@ const isValidDateRange = (startDate, returnDate) => {
 //Select - Obtener todos los mantenimientos
 maintenanceController.getMaintenances = async (req, res) => {
     try {
-        // Obtener mantenimientos con información del vehículo poblada
-        const maintenances = await maintenanceModel.find().populate('vehicleId');
+        // Obtener mantenimientos con información completa del vehículo poblada
+        const maintenances = await maintenanceModel.find()
+            .populate({
+                path: 'vehicleId',
+                select: 'vehicleName mainViewImage sideImage galleryImages plate brandId vehicleClass color year model'
+            })
+            .sort({ creationDate: -1 }); // Mostrar los más recientes primero
         
         // Verificar si existen mantenimientos
         if (!maintenances || maintenances.length === 0) {
-            return res.status(404).json({ 
-                success: false,
-                message: "No se encontraron mantenimientos" 
+            return res.status(200).json({ 
+                success: true,
+                message: "No se encontraron mantenimientos",
+                data: [],
+                count: 0
             });
         }
+
+        console.log('Mantenimientos encontrados:', maintenances.length);
+        console.log('Primer mantenimiento:', JSON.stringify(maintenances[0], null, 2));
 
         res.status(200).json({
             success: true,
@@ -60,8 +70,12 @@ maintenanceController.getMaintenanceById = async (req, res) => {
             });
         }
 
-        // Buscar mantenimiento por ID
-        const maintenance = await maintenanceModel.findById(id).populate('vehicleId');
+        // Buscar mantenimiento por ID con populate completo
+        const maintenance = await maintenanceModel.findById(id)
+            .populate({
+                path: 'vehicleId',
+                select: 'vehicleName mainViewImage sideImage galleryImages plate brandId vehicleClass color year model'
+            });
         
         if (!maintenance) {
             return res.status(404).json({
@@ -171,10 +185,17 @@ maintenanceController.createMaintenance = async (req, res) => {
 
         const savedMaintenance = await newMaintenance.save();
         
+        // Poblar el mantenimiento guardado antes de enviarlo
+        const populatedMaintenance = await maintenanceModel.findById(savedMaintenance._id)
+            .populate({
+                path: 'vehicleId',
+                select: 'vehicleName mainViewImage sideImage galleryImages plate brandId vehicleClass color year model'
+            });
+        
         res.status(201).json({ 
             success: true,
             message: "Mantenimiento creado exitosamente",
-            data: savedMaintenance
+            data: populatedMaintenance
         });
     } catch (error) {
         console.error('Error al crear mantenimiento:', error);
@@ -302,7 +323,10 @@ maintenanceController.updateMaintenance = async (req, res) => {
             id, 
             updateFields, 
             { new: true, runValidators: true }
-        ).populate('vehicleId');
+        ).populate({
+            path: 'vehicleId',
+            select: 'vehicleName mainViewImage sideImage galleryImages plate brandId vehicleClass color year model'
+        });
 
         res.status(200).json({ 
             success: true,
@@ -343,7 +367,12 @@ maintenanceController.deleteMaintenance = async (req, res) => {
         }
 
         // Verificar que el mantenimiento existe antes de eliminarlo
-        const maintenance = await maintenanceModel.findById(id);
+        const maintenance = await maintenanceModel.findById(id)
+            .populate({
+                path: 'vehicleId',
+                select: 'vehicleName mainViewImage sideImage galleryImages plate brandId vehicleClass color year model'
+            });
+            
         if (!maintenance) {
             return res.status(404).json({
                 success: false,
@@ -383,7 +412,12 @@ maintenanceController.getMaintenancesByVehicleId = async (req, res) => {
         }
 
         // Buscar mantenimientos por vehicleId
-        const maintenances = await maintenanceModel.find({ vehicleId }).populate('vehicleId');
+        const maintenances = await maintenanceModel.find({ vehicleId })
+            .populate({
+                path: 'vehicleId',
+                select: 'vehicleName mainViewImage sideImage galleryImages plate brandId vehicleClass color year model'
+            })
+            .sort({ creationDate: -1 });
         
         res.status(200).json({
             success: true,
@@ -414,7 +448,12 @@ maintenanceController.getMaintenancesByStatus = async (req, res) => {
         }
 
         // Buscar mantenimientos por estado
-        const maintenances = await maintenanceModel.find({ status }).populate('vehicleId');
+        const maintenances = await maintenanceModel.find({ status })
+            .populate({
+                path: 'vehicleId',
+                select: 'vehicleName mainViewImage sideImage galleryImages plate brandId vehicleClass color year model'
+            })
+            .sort({ creationDate: -1 });
         
         res.status(200).json({
             success: true,
