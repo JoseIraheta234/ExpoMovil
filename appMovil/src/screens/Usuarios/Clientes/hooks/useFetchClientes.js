@@ -64,30 +64,6 @@ export const useFetchClientes = () => {
         }));
 
         setClientes(transformedClientes);
-      } else if (result.data && Array.isArray(result.data)) {
-        // Si el backend devuelve un objeto con data
-        const validClientes = result.data.filter(cliente => {
-          return cliente._id && cliente.name && cliente.lastName && cliente.email;
-        });
-
-        const transformedClientes = validClientes.map(cliente => ({
-          id: cliente._id,
-          name: cliente.name,
-          lastName: cliente.lastName,
-          email: cliente.email,
-          password: '••••••••••••',
-          phone: cliente.phone || '',
-          birthDate: cliente.birthDate || '',
-          licenseFront: cliente.licenseFront || '',
-          licenseBack: cliente.licenseBack || '',
-          passportFront: cliente.passportFront || '',
-          passportBack: cliente.passportBack || '',
-          foto: cliente.photo || '',
-          activo: true,
-          fechaRegistro: cliente.createdAt ? cliente.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
-        }));
-
-        setClientes(transformedClientes);
       } else {
         throw new Error('Formato de respuesta inesperado del servidor');
       }
@@ -130,17 +106,27 @@ export const useFetchClientes = () => {
       formData.append('lastName', clienteData.lastName);
       formData.append('email', clienteData.email);
       formData.append('password', clienteData.password);
-      formData.append('phone', clienteData.phone);
+      
+      // Formatear teléfono para el backend (formato salvadoreño)
+      let phoneFormatted = clienteData.phone.replace(/\s/g, '');
+      if (phoneFormatted.length === 8 && !phoneFormatted.includes('-')) {
+        phoneFormatted = phoneFormatted.substring(0, 4) + '-' + phoneFormatted.substring(4);
+      }
+      formData.append('phone', phoneFormatted);
       
       // Convertir fecha a formato ISO si es un objeto Date
       if (clienteData.birthDate instanceof Date) {
         formData.append('birthDate', clienteData.birthDate.toISOString().split('T')[0]);
+      } else if (clienteData.birthDate && clienteData.birthDate.includes('/')) {
+        // Convertir DD/MM/AAAA a YYYY-MM-DD
+        const [day, month, year] = clienteData.birthDate.split('/');
+        formData.append('birthDate', `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
       } else {
-        formData.append('birthDate', clienteData.birthDate);
+        formData.append('birthDate', clienteData.birthDate || new Date().toISOString().split('T')[0]);
       }
       
       // Agregar imágenes de documentos si existen
-      const imageFields = ['licenseFront', 'licenseBack', 'passportFront', 'passportBack', 'foto'];
+      const imageFields = ['licenseFront', 'licenseBack', 'passportFront', 'passportBack'];
       
       imageFields.forEach(field => {
         if (clienteData[field]) {
@@ -149,13 +135,27 @@ export const useFetchClientes = () => {
           const match = /\.(\w+)$/.exec(filename);
           const type = match ? `image/${match[1]}` : 'image';
           
-          formData.append(field === 'foto' ? 'photo' : field, {
+          formData.append(field, {
             uri: imageUri,
             name: filename,
             type: type,
           });
         }
       });
+
+      // Agregar foto de perfil si existe
+      if (clienteData.foto) {
+        const imageUri = clienteData.foto;
+        const filename = imageUri.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image';
+        
+        formData.append('photo', {
+          uri: imageUri,
+          name: filename,
+          type: type,
+        });
+      }
 
       const response = await fetchWithTimeout(`${API_BASE_URL}/registerClients`, {
         method: 'POST',
@@ -168,7 +168,16 @@ export const useFetchClientes = () => {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Error al crear cliente');
+        // Manejar errores específicos del backend
+        if (result.message && result.message.includes('correo ya está registrado')) {
+          throw new Error('Este email ya está registrado');
+        } else if (result.message && result.message.includes('teléfono')) {
+          throw new Error('Formato de teléfono inválido. Use el formato 2XXX-XXXX, 6XXX-XXXX o 7XXX-XXXX');
+        } else if (result.message && result.message.includes('mayor de 18')) {
+          throw new Error('Debe ser mayor de 18 años para registrarse');
+        } else {
+          throw new Error(result.message || 'Error al crear cliente');
+        }
       }
 
       // Refrescar la lista después de crear
@@ -220,16 +229,29 @@ export const useFetchClientes = () => {
       // Crear FormData para enviar archivos de imágenes
       const formData = new FormData();
       
-      const textFields = ['name', 'lastName', 'email', 'password', 'phone'];
+      const textFields = ['name', 'lastName', 'email', 'password'];
       textFields.forEach(field => {
         if (clienteData[field] && clienteData[field] !== '••••••••••••') {
           formData.append(field, clienteData[field]);
         }
       });
+
+      // Formatear teléfono para el backend
+      if (clienteData.phone) {
+        let phoneFormatted = clienteData.phone.replace(/\s/g, '');
+        if (phoneFormatted.length === 8 && !phoneFormatted.includes('-')) {
+          phoneFormatted = phoneFormatted.substring(0, 4) + '-' + phoneFormatted.substring(4);
+        }
+        formData.append('phone', phoneFormatted);
+      }
       
       if (clienteData.birthDate) {
         if (clienteData.birthDate instanceof Date) {
           formData.append('birthDate', clienteData.birthDate.toISOString().split('T')[0]);
+        } else if (clienteData.birthDate.includes('/')) {
+          // Convertir DD/MM/AAAA a YYYY-MM-DD
+          const [day, month, year] = clienteData.birthDate.split('/');
+          formData.append('birthDate', `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
         } else {
           formData.append('birthDate', clienteData.birthDate);
         }
@@ -279,7 +301,14 @@ export const useFetchClientes = () => {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Error al actualizar cliente');
+        // Manejar errores específicos del backend
+        if (result.message && result.message.includes('correo ya está en uso')) {
+          throw new Error('Este email ya está en uso por otro cliente');
+        } else if (result.message && result.message.includes('teléfono')) {
+          throw new Error('Formato de teléfono inválido. Use el formato 2XXX-XXXX, 6XXX-XXXX o 7XXX-XXXX');
+        } else {
+          throw new Error(result.message || 'Error al actualizar cliente');
+        }
       }
 
       // Refrescar la lista después de actualizar
@@ -308,6 +337,11 @@ export const useFetchClientes = () => {
     return clientes.find(cliente => cliente.id === id);
   }, [clientes]);
 
+  // Función para limpiar errores
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   // Cargar clientes al inicializar el hook
   useEffect(() => {
     fetchClientes();
@@ -327,5 +361,6 @@ export const useFetchClientes = () => {
     deleteCliente,
     searchClientes,
     getClienteById,
+    setError: clearError, // Para limpiar errores desde el componente
   };
 };

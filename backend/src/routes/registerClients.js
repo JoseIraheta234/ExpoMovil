@@ -1,12 +1,23 @@
 //Imports
 import express from "express"
+import multer from "multer";
 import registerClientsController from "../controllers/registerClientsController.js";
+
+
+const upload = multer({dest: "public/Clients"})
 
 //Router
 const router = express.Router();
-//Route
+
+
 router.route("/")
-  .post(registerClientsController.registerClients)
+  .post(upload.fields([
+    { name: "licenseFront", maxCount: 1 },
+    { name: "licenseBack", maxCount: 1 },
+    { name: "passportFront", maxCount: 1 },
+    { name: "passportBack", maxCount: 1 },
+    { name: "photo", maxCount: 1 }  
+  ]), registerClientsController.registerClients)
 
 //Subroutes
 router.route("/verifyCodeEmail")

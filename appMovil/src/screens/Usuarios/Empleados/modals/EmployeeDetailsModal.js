@@ -10,8 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
-  Image,
   Alert,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
@@ -30,13 +31,14 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
     foto: '',
   });
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (empleado) {
       setFormData({
         nombre: empleado.nombre || '',
         email: empleado.email || '',
-        contrasena: empleado.contrasena || '',
+        contrasena: '••••••••••••', // Mostrar bullets por defecto
         dui: empleado.dui || '',
         telefono: empleado.telefono || '',
         rol: empleado.rol || 'Empleado',
@@ -53,45 +55,51 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
   };
 
   const pickImage = async () => {
-    // Pedir permisos
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
-      Alert.alert('Permisos necesarios', 'Se necesitan permisos para acceder a la galería de fotos.');
-      return;
-    }
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        Alert.alert('Permisos necesarios', 'Se necesitan permisos para acceder a la galería de fotos.');
+        return;
+      }
 
-    // Abrir selector de imágenes
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
 
-    if (!result.canceled) {
-      handleInputChange('foto', result.assets[0].uri);
+      if (!result.canceled) {
+        handleInputChange('foto', result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error al seleccionar imagen:', error);
+      Alert.alert('Error', 'No se pudo seleccionar la imagen');
     }
   };
 
   const takePhoto = async () => {
-    // Pedir permisos de cámara
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
-      Alert.alert('Permisos necesarios', 'Se necesitan permisos para acceder a la cámara.');
-      return;
-    }
+    try {
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        Alert.alert('Permisos necesarios', 'Se necesitan permisos para acceder a la cámara.');
+        return;
+      }
 
-    // Abrir cámara
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
 
-    if (!result.canceled) {
-      handleInputChange('foto', result.assets[0].uri);
+      if (!result.canceled) {
+        handleInputChange('foto', result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error al tomar foto:', error);
+      Alert.alert('Error', 'No se pudo tomar la foto');
     }
   };
 
@@ -116,10 +124,80 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
     );
   };
 
-  const handleUpdate = () => {
-    if (formData.nombre.trim() && formData.email.trim()) {
-      onUpdate(formData);
+  const handleUpdate = async () => {
+    if (!formData.nombre.trim() || !formData.email.trim()) {
+      Alert.alert('Error', 'Por favor completa los campos obligatorios (nombre y email)');
+      return;
+    }
+
+    // Validación básica de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      Alert.alert('Error', 'Por favor ingresa un email válido');
+      return;
+    }
+
+    // Validación de teléfono (formato salvadoreño)
+    if (formData.telefono.trim()) {
+      const phoneRegex = /^\d{4}[-\s]?\d{4}$/;
+      if (!phoneRegex.test(formData.telefono.replace(/\s/g, ''))) {
+        Alert.alert('Error', 'El teléfono debe tener el formato 1234-5678 o 12345678');
+        return;
+      }
+    }
+
+    // Validación de DUI (formato salvadoreño)
+    if (formData.dui.trim()) {
+      const duiRegex = /^\d{8}[-]?\d{1}$/;
+      if (!duiRegex.test(formData.dui.replace(/\s/g, ''))) {
+        Alert.alert('Error', 'El DUI debe tener el formato 12345678-9');
+        return;
+      }
+    }
+
+    // Validación de contraseña si se está cambiando
+    if (formData.contrasena.trim() && formData.contrasena !== '••••••••••••' && formData.contrasena.length < 6) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      await onUpdate(formData);
       setShowSuccessModal(true);
+    } catch (error) {
+      console.error('Error al actualizar empleado:', error);
+      
+      // Manejar diferentes tipos de errores
+      let errorMessage = 'Error desconocido al actualizar el empleado';
+      
+      if (error.message) {
+        if (error.message.includes('email')) {
+          errorMessage = 'El email ya está en uso o es inválido';
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = 'Error de conexión. Verifica tu internet e inténtalo de nuevo';
+        } else if (error.message.includes('400')) {
+          errorMessage = 'Datos inválidos. Verifica la información ingresada';
+        } else if (error.message.includes('500')) {
+          errorMessage = 'Error del servidor. Inténtalo más tarde';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      Alert.alert(
+        'Error al actualizar', 
+        errorMessage,
+        [
+          {
+            text: 'Entendido',
+            style: 'default'
+          }
+        ]
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -153,7 +231,7 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
               <Ionicons name="checkmark" size={32} color="white" />
             </View>
             <Text style={styles.successTitle}>¡Empleado actualizado!</Text>
-            <Text style={styles.successMessage}>El empleado se actualiza satisfactoriamente</Text>
+            <Text style={styles.successMessage}>El empleado se actualizó satisfactoriamente</Text>
             <TouchableOpacity
               style={styles.okButton}
               onPress={handleSuccessClose}
@@ -180,10 +258,10 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
         >
           <View style={styles.modalContainer}>
             <View style={styles.header}>
-              <TouchableOpacity onPress={onClose}>
+              <TouchableOpacity onPress={onClose} disabled={isLoading}>
                 <Ionicons name="chevron-back" size={24} color="white" />
               </TouchableOpacity>
-              <Text style={styles.title}>Detalles</Text>
+              <Text style={styles.title}>Detalles del Empleado</Text>
               <View style={{ width: 24 }} />
             </View>
 
@@ -193,12 +271,15 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
                   <TouchableOpacity 
                     style={styles.avatarButton}
                     onPress={showImageOptions}
+                    disabled={isLoading}
                   >
                     {formData.foto ? (
                       <Image source={{ uri: formData.foto }} style={styles.avatar} />
                     ) : (
                       <View style={styles.avatarPlaceholder}>
-                        <Text style={styles.avatarText}>{getInitials(empleado?.nombre || '')}</Text>
+                        <Text style={styles.avatarText}>
+                          {getInitials(empleado?.nombre || '')}
+                        </Text>
                       </View>
                     )}
                     <View style={styles.cameraOverlay}>
@@ -210,7 +291,9 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
                     <Image source={{ uri: formData.foto }} style={styles.avatar} />
                   ) : (
                     <View style={styles.avatarPlaceholder}>
-                      <Text style={styles.avatarText}>{getInitials(empleado?.nombre || '')}</Text>
+                      <Text style={styles.avatarText}>
+                        {getInitials(empleado?.nombre || '')}
+                      </Text>
                     </View>
                   )
                 )}
@@ -220,21 +303,22 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Nombre del empleado</Text>
                   <TextInput
-                    style={[styles.input, !isEditing && styles.disabledInput]}
+                    style={[styles.input, !isEditing && styles.disabledInput, isLoading && styles.disabledInput]}
                     value={formData.nombre}
                     onChangeText={(value) => handleInputChange('nombre', value)}
-                    editable={isEditing}
-                    placeholder="Nombre completo"
+                    editable={isEditing && !isLoading}
+                    placeholder="Nombre del empleado"
+                    autoCapitalize="words"
                   />
                 </View>
 
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Correo electrónico</Text>
                   <TextInput
-                    style={[styles.input, !isEditing && styles.disabledInput]}
+                    style={[styles.input, !isEditing && styles.disabledInput, isLoading && styles.disabledInput]}
                     value={formData.email}
                     onChangeText={(value) => handleInputChange('email', value)}
-                    editable={isEditing}
+                    editable={isEditing && !isLoading}
                     placeholder="correo@empresa.com"
                     keyboardType="email-address"
                     autoCapitalize="none"
@@ -244,11 +328,12 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Contraseña</Text>
                   <TextInput
-                    style={[styles.input, !isEditing && styles.disabledInput]}
+                    style={[styles.input, !isEditing && styles.disabledInput, isLoading && styles.disabledInput]}
                     value={formData.contrasena}
                     onChangeText={(value) => handleInputChange('contrasena', value)}
-                    editable={isEditing}
+                    editable={isEditing && !isLoading}
                     secureTextEntry={true}
+                    placeholder="••••••••••••"
                   />
                 </View>
 
@@ -256,46 +341,39 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
                   <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
                     <Text style={styles.label}>DUI</Text>
                     <TextInput
-                      style={[styles.input, !isEditing && styles.disabledInput]}
+                      style={[styles.input, !isEditing && styles.disabledInput, isLoading && styles.disabledInput]}
                       value={formData.dui}
                       onChangeText={(value) => handleInputChange('dui', value)}
-                      editable={isEditing}
-                      placeholder="00000000-0"
+                      editable={isEditing && !isLoading}
+                      placeholder="12345678-9"
                     />
                   </View>
 
                   <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
                     <Text style={styles.label}>Rol</Text>
-                    {isEditing ? (
-                      <View style={styles.pickerContainer}>
-                        <Picker
-                          selectedValue={formData.rol}
-                          onValueChange={(value) => handleInputChange('rol', value)}
-                          style={styles.picker}
-                        >
-                          {roles.map((rol) => (
-                            <Picker.Item key={rol} label={rol} value={rol} />
-                          ))}
-                        </Picker>
-                      </View>
-                    ) : (
-                      <TextInput
-                        style={[styles.input, styles.disabledInput]}
-                        value={formData.rol}
-                        editable={false}
-                      />
-                    )}
+                    <View style={[styles.pickerContainer, (!isEditing || isLoading) && styles.disabledInput]}>
+                      <Picker
+                        selectedValue={formData.rol}
+                        onValueChange={(value) => handleInputChange('rol', value)}
+                        style={styles.picker}
+                        enabled={isEditing && !isLoading}
+                      >
+                        {roles.map((rol) => (
+                          <Picker.Item key={rol} label={rol} value={rol} />
+                        ))}
+                      </Picker>
+                    </View>
                   </View>
                 </View>
 
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Teléfono</Text>
                   <TextInput
-                    style={[styles.input, !isEditing && styles.disabledInput]}
+                    style={[styles.input, !isEditing && styles.disabledInput, isLoading && styles.disabledInput]}
                     value={formData.telefono}
                     onChangeText={(value) => handleInputChange('telefono', value)}
-                    editable={isEditing}
-                    placeholder="0000-0000"
+                    editable={isEditing && !isLoading}
+                    placeholder="1234-5678"
                     keyboardType="phone-pad"
                   />
                 </View>
@@ -304,18 +382,29 @@ export default function EmployeeDetailsModal({ visible, empleado, onClose, onUpd
 
             <View style={styles.footer}>
               <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
+                style={[styles.button, styles.cancelButton, isLoading && styles.disabledButton]}
                 onPress={onClose}
+                disabled={isLoading}
               >
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.button, styles.updateButton]}
-                onPress={handleUpdate}
-              >
-                <Text style={styles.updateButtonText}>Actualizar</Text>
-              </TouchableOpacity>
+              {isEditing && (
+                <TouchableOpacity
+                  style={[styles.button, styles.updateButton, isLoading && styles.disabledButton]}
+                  onPress={handleUpdate}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size="small" color="white" />
+                      <Text style={styles.updateButtonText}>Actualizando...</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.updateButtonText}>Actualizar</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -463,6 +552,14 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   // Success Modal Styles
   successContainer: {

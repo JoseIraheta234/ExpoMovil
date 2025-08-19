@@ -9,6 +9,7 @@ import {
   Dimensions,
   StatusBar,
   TextInput,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import EmployeeCard from './Empleados/components/EmployeeCard';
@@ -25,8 +26,8 @@ const { width, height } = Dimensions.get('window');
 
 export default function Usuarios() {
   // Usar solo los hooks useFetch
-  const { empleados, addEmpleado, updateEmpleado, loading, error } = useFetchEmpleados();
-  const { clientes, addCliente, updateCliente, loading: clientesLoading, error: clientesError } = useFetchClientes();
+  const { empleados, addEmpleado, updateEmpleado, loading, error, setError } = useFetchEmpleados();
+  const { clientes, addCliente, updateCliente, loading: clientesLoading, error: clientesError, setError: setClientesError } = useFetchClientes();
   
   const [activeTab, setActiveTab] = useState('empleados');
   const [modalType, setModalType] = useState(null);
@@ -36,11 +37,20 @@ export default function Usuarios() {
   const openModal = (type, user = null) => {
     setModalType(type);
     setSelectedUser(user);
+    // Limpiar errores al abrir un modal
+    if (type.includes('employee') || type.includes('Employee')) {
+      setError && setError(null);
+    } else {
+      setClientesError && setClientesError(null);
+    }
   };
 
   const closeModal = () => {
     setModalType(null);
     setSelectedUser(null);
+    // Limpiar errores al cerrar modales
+    setError && setError(null);
+    setClientesError && setClientesError(null);
   };
 
   const handleAddEmployee = async (employeeData) => {
@@ -49,6 +59,8 @@ export default function Usuarios() {
       closeModal();
     } catch (error) {
       console.error('Error al agregar empleado:', error);
+      // El error ya se maneja en el modal AddEmployeeModal
+      // No cerramos el modal para que el usuario pueda corregir e intentar de nuevo
     }
   };
 
@@ -58,6 +70,8 @@ export default function Usuarios() {
       closeModal();
     } catch (error) {
       console.error('Error al agregar cliente:', error);
+      // El error ya se maneja en el modal AddClientModal
+      // No cerramos el modal para que el usuario pueda corregir e intentar de nuevo
     }
   };
 
@@ -67,6 +81,7 @@ export default function Usuarios() {
       closeModal();
     } catch (error) {
       console.error('Error al actualizar empleado:', error);
+      // El error ya se maneja en el modal EmployeeDetailsModal
     }
   };
 
@@ -76,6 +91,7 @@ export default function Usuarios() {
       closeModal();
     } catch (error) {
       console.error('Error al actualizar cliente:', error);
+      // El error ya se maneja en el modal ClientDetailsModal
     }
   };
 
@@ -146,27 +162,60 @@ export default function Usuarios() {
     }
   };
 
+  const handleRetry = () => {
+    // Función para reintentar la carga
+    if (activeTab === 'empleados') {
+      setError && setError(null);
+    } else {
+      setClientesError && setClientesError(null);
+    }
+  };
+
+  const renderError = (errorMessage, isEmployees = true) => {
+    return (
+      <View style={styles.errorContainer}>
+        <Ionicons name="warning" size={48} color="#E74C3C" />
+        <Text style={styles.errorTitle}>Error de conexión</Text>
+        <Text style={styles.errorText}>{errorMessage}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+          <Ionicons name="refresh" size={20} color="white" />
+          <Text style={styles.retryButtonText}>Intentar de nuevo</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   if (loading || clientesLoading) {
     return (
       <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#5B9BD5" />
+        
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity style={styles.backButton}>
+              <Ionicons name="chevron-back" size={24} color="white" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Usuarios</Text>
+          </View>
+          <TouchableOpacity style={styles.profileButton}>
+            <Ionicons name="person-circle" size={28} color="white" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.subtitleContainer}>
+          <Text style={styles.subtitle}>Conoce a tu equipo.</Text>
+        </View>
+
         <View style={styles.loadingContainer}>
-          <Text>Cargando...</Text>
+          <Ionicons name="hourglass" size={48} color="#5B9BD5" />
+          <Text style={styles.loadingText}>Cargando usuarios...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  if (error || clientesError) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>
-            Error: {error || clientesError}
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // Mostrar error solo si ambos tienen error o si el tab activo tiene error
+  const shouldShowError = (activeTab === 'empleados' && error) || (activeTab === 'clientes' && clientesError);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -234,11 +283,34 @@ export default function Usuarios() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        <View style={styles.cardsContainer}>
-          {renderUserCards()}
-        </View>
-      </ScrollView>
+      {shouldShowError ? (
+        renderError(activeTab === 'empleados' ? error : clientesError, activeTab === 'empleados')
+      ) : (
+        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+          <View style={styles.cardsContainer}>
+            {filteredUsers().length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons 
+                  name={activeTab === 'empleados' ? 'people' : 'person'} 
+                  size={64} 
+                  color="#CCC" 
+                />
+                <Text style={styles.emptyTitle}>
+                  {searchQuery ? 'No se encontraron resultados' : `No hay ${activeTab} registrados`}
+                </Text>
+                <Text style={styles.emptyText}>
+                  {searchQuery 
+                    ? 'Intenta con otros términos de búsqueda' 
+                    : `Agrega tu primer ${activeTab === 'empleados' ? 'empleado' : 'cliente'} usando el botón de arriba`
+                  }
+                </Text>
+              </View>
+            ) : (
+              renderUserCards()
+            )}
+          </View>
+        </ScrollView>
+      )}
 
       {modalType === 'addEmployee' && (
         <AddEmployeeModal
@@ -288,6 +360,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
   errorContainer: {
     flex: 1,
@@ -295,10 +374,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  errorText: {
-    color: 'red',
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
     textAlign: 'center',
-    fontSize: 16,
+  },
+  errorText: {
+    color: '#666',
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#5B9BD5',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   header: {
     backgroundColor: '#5B9BD5',

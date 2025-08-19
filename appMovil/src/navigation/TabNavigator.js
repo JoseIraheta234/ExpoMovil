@@ -182,10 +182,7 @@ const TabNavigator = () => {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      {/* Header superior opcional */}
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>Mi App</Text>
-      </View>
+      {/* Header superior removido - ya no se muestra "Mi App" */}
       
       {/* Tab Navigator con animación personalizada y tabBar custom */}
       <Tab.Navigator
@@ -226,21 +223,8 @@ const TabNavigator = () => {
 
 export default TabNavigator;
 
-// Estilos para el header
+// Estilos para el popout (los estilos del header ya no son necesarios)
 const styles = StyleSheet.create({
-  headerContainer: {
-    width: '100%',
-    backgroundColor: '#4A90E2',
-    paddingVertical: 15,
-    paddingHorizontal: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   // Estilos para el popout
   popoutOverlay: {
     flex: 1,

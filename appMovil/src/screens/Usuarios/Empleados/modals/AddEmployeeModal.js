@@ -12,6 +12,7 @@ import {
   Dimensions,
   Alert,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
@@ -30,7 +31,7 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
     foto: '',
   });
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -40,45 +41,51 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
   };
 
   const pickImage = async () => {
-    // Pedir permisos
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
-      Alert.alert('Permisos necesarios', 'Se necesitan permisos para acceder a la galería de fotos.');
-      return;
-    }
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        Alert.alert('Permisos necesarios', 'Se necesitan permisos para acceder a la galería de fotos.');
+        return;
+      }
 
-    // Abrir selector de imágenes
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
 
-    if (!result.canceled) {
-      handleInputChange('foto', result.assets[0].uri);
+      if (!result.canceled) {
+        handleInputChange('foto', result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error al seleccionar imagen:', error);
+      Alert.alert('Error', 'No se pudo seleccionar la imagen');
     }
   };
 
   const takePhoto = async () => {
-    // Pedir permisos de cámara
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
-      Alert.alert('Permisos necesarios', 'Se necesitan permisos para acceder a la cámara.');
-      return;
-    }
+    try {
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        Alert.alert('Permisos necesarios', 'Se necesitan permisos para acceder a la cámara.');
+        return;
+      }
 
-    // Abrir cámara
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
 
-    if (!result.canceled) {
-      handleInputChange('foto', result.assets[0].uri);
+      if (!result.canceled) {
+        handleInputChange('foto', result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error al tomar foto:', error);
+      Alert.alert('Error', 'No se pudo tomar la foto');
     }
   };
 
@@ -103,18 +110,81 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
     );
   };
 
-  const handleSave = () => {
-    if (formData.nombre.trim() && formData.email.trim()) {
-      setShowConfirmationModal(true);
-    } else {
-      Alert.alert('Error', 'Por favor completa los campos obligatorios');
+  const handleSave = async () => {
+    if (!formData.nombre.trim() || !formData.email.trim()) {
+      Alert.alert('Error', 'Por favor completa los campos obligatorios (nombre y email)');
+      return;
     }
-  };
 
-  const handleConfirmSave = () => {
-    setShowConfirmationModal(false);
-    onConfirm(formData);
-    setShowSuccessModal(true);
+    // Validación básica de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      Alert.alert('Error', 'Por favor ingresa un email válido');
+      return;
+    }
+
+    // Validación de teléfono (formato salvadoreño)
+    if (formData.telefono.trim()) {
+      const phoneRegex = /^\d{4}[-\s]?\d{4}$/;
+      if (!phoneRegex.test(formData.telefono.replace(/\s/g, ''))) {
+        Alert.alert('Error', 'El teléfono debe tener el formato 1234-5678 o 12345678');
+        return;
+      }
+    }
+
+    // Validación de DUI (formato salvadoreño)
+    if (formData.dui.trim()) {
+      const duiRegex = /^\d{8}[-]?\d{1}$/;
+      if (!duiRegex.test(formData.dui.replace(/\s/g, ''))) {
+        Alert.alert('Error', 'El DUI debe tener el formato 12345678-9');
+        return;
+      }
+    }
+
+    // Validación de contraseña mínima
+    if (formData.contrasena.trim() && formData.contrasena.length < 6) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      await onConfirm(formData);
+      setShowSuccessModal(true);
+    } catch (error) {
+      console.error('Error al guardar empleado:', error);
+      
+      // Manejar diferentes tipos de errores
+      let errorMessage = 'Error desconocido al guardar el empleado';
+      
+      if (error.message) {
+        if (error.message.includes('email')) {
+          errorMessage = 'El email ya está en uso o es inválido';
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = 'Error de conexión. Verifica tu internet e inténtalo de nuevo';
+        } else if (error.message.includes('400')) {
+          errorMessage = 'Datos inválidos. Verifica la información ingresada';
+        } else if (error.message.includes('500')) {
+          errorMessage = 'Error del servidor. Inténtalo más tarde';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      Alert.alert(
+        'Error al guardar', 
+        errorMessage,
+        [
+          {
+            text: 'Entendido',
+            style: 'default'
+          }
+        ]
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSuccessClose = () => {
@@ -132,57 +202,21 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
   };
 
   const handleClose = () => {
-    setFormData({
-      nombre: '',
-      email: '',
-      contrasena: '',
-      dui: '',
-      telefono: '',
-      rol: 'Empleado',
-      foto: '',
-    });
-    onClose();
+    if (!isLoading) {
+      setFormData({
+        nombre: '',
+        email: '',
+        contrasena: '',
+        dui: '',
+        telefono: '',
+        rol: 'Empleado',
+        foto: '',
+      });
+      onClose();
+    }
   };
 
   const roles = ['Administrador', 'Gestor', 'Empleado'];
-
-  // Modal de confirmación
-  if (showConfirmationModal) {
-    return (
-      <Modal
-        visible={visible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowConfirmationModal(false)}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.confirmationContainer}>
-            <View style={styles.questionIcon}>
-              <Ionicons name="help" size={32} color="white" />
-            </View>
-            <Text style={styles.confirmationTitle}>¿Estás seguro?</Text>
-            <Text style={styles.confirmationMessage}>
-              Los datos no se han guardado todavía ¿estás seguro que quieres cancelar?
-            </Text>
-            <View style={styles.confirmationButtons}>
-              <TouchableOpacity
-                style={[styles.button, styles.confirmationCancelButton]}
-                onPress={() => setShowConfirmationModal(false)}
-              >
-                <Text style={styles.cancelButtonText}>Regresar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.confirmationConfirmButton]}
-                onPress={handleConfirmSave}
-              >
-                <Text style={styles.confirmButtonText}>Sí, estoy seguro</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  }
 
   // Modal de éxito
   if (showSuccessModal) {
@@ -198,7 +232,7 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
             <View style={styles.successIcon}>
               <Ionicons name="checkmark" size={32} color="white" />
             </View>
-            <Text style={styles.successTitle}>¡Nuevo empleado guardado!</Text>
+            <Text style={styles.successTitle}>¡Empleado guardado!</Text>
             <Text style={styles.successMessage}>El empleado se ha guardado satisfactoriamente</Text>
             <TouchableOpacity
               style={styles.okButton}
@@ -226,7 +260,7 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
         >
           <View style={styles.modalContainer}>
             <View style={styles.header}>
-              <TouchableOpacity onPress={handleClose}>
+              <TouchableOpacity onPress={handleClose} disabled={isLoading}>
                 <Ionicons name="chevron-back" size={24} color="white" />
               </TouchableOpacity>
               <Text style={styles.title}>Añadir empleado</Text>
@@ -238,6 +272,7 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
                 <TouchableOpacity 
                   style={styles.photoUploadButton}
                   onPress={showImageOptions}
+                  disabled={isLoading}
                 >
                   {formData.foto ? (
                     <Image source={{ uri: formData.foto }} style={styles.photoPreview} />
@@ -249,36 +284,39 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
 
               <View style={styles.formContainer}>
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Nombre del empleado</Text>
+                  <Text style={styles.label}>Nombre del empleado *</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, isLoading && styles.disabledInput]}
                     placeholder="Carlos Martínez"
                     value={formData.nombre}
                     onChangeText={(value) => handleInputChange('nombre', value)}
                     autoCapitalize="words"
+                    editable={!isLoading}
                   />
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Correo electrónico</Text>
+                  <Text style={styles.label}>Correo electrónico *</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, isLoading && styles.disabledInput]}
                     placeholder="carlos.martinez@empresa.com"
                     value={formData.email}
                     onChangeText={(value) => handleInputChange('email', value)}
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    editable={!isLoading}
                   />
                 </View>
 
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Contraseña</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, isLoading && styles.disabledInput]}
                     placeholder="••••••••••••"
                     value={formData.contrasena}
                     onChangeText={(value) => handleInputChange('contrasena', value)}
                     secureTextEntry={true}
+                    editable={!isLoading}
                   />
                 </View>
 
@@ -286,20 +324,22 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
                   <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
                     <Text style={styles.label}>DUI</Text>
                     <TextInput
-                      style={styles.input}
+                      style={[styles.input, isLoading && styles.disabledInput]}
                       placeholder="123456789-0"
                       value={formData.dui}
                       onChangeText={(value) => handleInputChange('dui', value)}
+                      editable={!isLoading}
                     />
                   </View>
 
                   <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
                     <Text style={styles.label}>Rol</Text>
-                    <View style={styles.pickerContainer}>
+                    <View style={[styles.pickerContainer, isLoading && styles.disabledInput]}>
                       <Picker
                         selectedValue={formData.rol}
                         onValueChange={(value) => handleInputChange('rol', value)}
                         style={styles.picker}
+                        enabled={!isLoading}
                       >
                         {roles.map((rol) => (
                           <Picker.Item key={rol} label={rol} value={rol} />
@@ -312,11 +352,12 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Teléfono</Text>
                   <TextInput
-                    style={styles.input}
-                    placeholder="1234 - 5678"
+                    style={[styles.input, isLoading && styles.disabledInput]}
+                    placeholder="1234-5678"
                     value={formData.telefono}
                     onChangeText={(value) => handleInputChange('telefono', value)}
                     keyboardType="phone-pad"
+                    editable={!isLoading}
                   />
                 </View>
               </View>
@@ -324,17 +365,26 @@ export default function AddEmployeeModal({ visible, onClose, onConfirm }) {
 
             <View style={styles.footer}>
               <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
+                style={[styles.button, styles.cancelButton, isLoading && styles.disabledButton]}
                 onPress={handleClose}
+                disabled={isLoading}
               >
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
+                style={[styles.button, styles.saveButton, isLoading && styles.disabledButton]}
                 onPress={handleSave}
+                disabled={isLoading}
               >
-                <Text style={styles.saveButtonText}>Guardar</Text>
+                {isLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color="white" />
+                    <Text style={styles.saveButtonText}>Guardando...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.saveButtonText}>Guardar</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -422,6 +472,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#FAFAFA',
   },
+  disabledInput: {
+    backgroundColor: '#F5F5F5',
+    color: '#999',
+  },
   row: {
     flexDirection: 'row',
   },
@@ -463,53 +517,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // Confirmation Modal Styles
-  confirmationContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 32,
-    alignItems: 'center',
-    marginHorizontal: 32,
+  disabledButton: {
+    opacity: 0.6,
   },
-  questionIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#F39C12',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  confirmationTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  confirmationMessage: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  confirmationButtons: {
+  loadingContainer: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  confirmationCancelButton: {
-    backgroundColor: '#95A5A6',
-    paddingHorizontal: 16,
-  },
-  confirmationConfirmButton: {
-    backgroundColor: '#5B9BD5',
-    paddingHorizontal: 16,
-  },
-  confirmButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
+    alignItems: 'center',
+    gap: 8,
   },
   // Success Modal Styles
   successContainer: {
