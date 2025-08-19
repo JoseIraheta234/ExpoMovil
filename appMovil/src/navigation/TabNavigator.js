@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, TouchableOpacity, Text, StyleSheet, Platform, Modal } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Platform, Modal, Alert } from 'react-native';
+import { useAuth } from '../context/AuthContext';
 
 // Importar las pantallas
 import HomeScreen from '../screens/HomeScreen';
@@ -18,12 +19,12 @@ const Tab = createBottomTabNavigator();
 
 // Definición de los tabs con iconos y componentes
 const TabArr = [
-  { route: 'Home', label: 'Inicio', icon: 'home', component: HomeScreen },
-  { route: 'Marcas', label: 'Marcas', icon: 'car-sport', component: Marcas },
-  { route: 'Maintenance', label: 'Mantto.', icon: 'construct', component: MaintenanceScreen, title: 'Mantenimiento' },
-  { route: 'Reservations', label: 'Reservas', icon: 'calendar', component: ReservationScreen },
-  { route: 'Users', label: 'Usuarios', icon: 'people', component: Usuarios, hidden: true },
-  { route: 'Profile', label: 'Perfil', icon: 'person', component: ProfileScreen, hidden: true },
+  { route: 'Home', label: 'Inicio', icon: 'home', component: HomeScreen, roles: ['Administrador', 'Gestor', 'Empleado'] },
+  { route: 'Marcas', label: 'Marcas', icon: 'car-sport', component: Marcas, roles: ['Administrador'] },
+  { route: 'Maintenance', label: 'Mantto.', icon: 'construct', component: MaintenanceScreen, title: 'Mantenimiento', roles: ['Administrador', 'Gestor'] },
+  { route: 'Reservations', label: 'Reservas', icon: 'calendar', component: ReservationScreen, roles: ['Administrador', 'Empleado'] },
+  { route: 'Profile', label: 'Perfil', icon: 'person', component: ProfileScreen, roles: ['Gestor', 'Empleado'] }, // Visible para Gestor y Empleado
+  { route: 'Users', label: 'Usuarios', icon: 'people', component: Usuarios, hidden: true, roles: ['Administrador'] }, // Solo en popout para Admin
 ];
 
 // Animaciones para el tab
@@ -99,21 +100,80 @@ const TabButton = (props) => {
 };
 
 // Componente de submenu/popout
-const MorePopout = ({ visible, onClose, navigation }) => {
+const MorePopout = ({ visible, onClose, navigation, userRole }) => {
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Cerrar Sesión",
+      "¿Estás seguro que deseas cerrar sesión?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        {
+          text: "Cerrar Sesión",
+          style: "destructive",
+          onPress: () => {
+            onClose();
+            logout();
+          }
+        }
+      ]
+    );
+  };
+
+  // Filtrar opciones del popout basado en el rol
+  const getPopoutOptions = () => {
+    const options = [];
+    
+    // Usuarios solo para Administrador (ya que tiene muchas opciones)
+    if (userRole === 'Administrador') {
+      options.push({
+        key: 'users',
+        icon: 'people',
+        label: 'Usuarios',
+        color: '#4A90E2',
+        onPress: () => { onClose(); navigation.navigate('Users'); }
+      });
+
+      // Perfil también para Administrador ya que usa el popout
+      options.push({
+        key: 'profile',
+        icon: 'person',
+        label: 'Perfil',
+        color: '#4A90E2',
+        onPress: () => { onClose(); navigation.navigate('Profile'); }
+      });
+    }
+    
+    // Cerrar sesión siempre disponible para todos
+    options.push({
+      key: 'logout',
+      icon: 'log-out',
+      label: 'Cerrar Sesión',
+      color: '#E74C3C',
+      onPress: handleLogout
+    });
+    
+    return options;
+  };
+
+  const popoutOptions = getPopoutOptions();
+
   return (
     <Modal visible={visible} transparent animationType="fade">
       <TouchableOpacity style={styles.popoutOverlay} activeOpacity={1} onPress={onClose}>
         <View style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'flex-end' }}>
           <View style={styles.popoutWrapper}>
             <View style={styles.popoutContent}>
-              <TouchableOpacity style={styles.popoutRow} onPress={() => { onClose(); navigation.navigate('Users'); }}>
-                <Ionicons name="people" size={36} color="#4A90E2" style={styles.popoutIcon} />
-                <Text style={styles.popoutItem}>Usuarios</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.popoutRow} onPress={() => { onClose(); navigation.navigate('Profile'); }}>
-                <Ionicons name="person" size={36} color="#4A90E2" style={styles.popoutIcon} />
-                <Text style={styles.popoutItem}>Perfil</Text>
-              </TouchableOpacity>
+              {popoutOptions.map((option) => (
+                <TouchableOpacity key={option.key} style={styles.popoutRow} onPress={option.onPress}>
+                  <Ionicons name={option.icon} size={36} color={option.color} style={styles.popoutIcon} />
+                  <Text style={[styles.popoutItem, { color: option.color }]}>{option.label}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
             <View pointerEvents="none" style={styles.popoutArrow} />
           </View>
@@ -123,19 +183,54 @@ const MorePopout = ({ visible, onClose, navigation }) => {
   );
 };
 
+// Función para filtrar tabs basado en el rol del usuario
+const getVisibleTabs = (userRole) => {
+  return TabArr.filter(tab => {
+    // Si el tab no tiene roles definidos, mostrar para todos
+    if (!tab.roles) return true;
+    // Si el tab tiene roles definidos, verificar si el usuario tiene acceso
+    return tab.roles.includes(userRole);
+  });
+};
+
 // Componente principal del Tab Navigator
 const TabNavigator = () => {
   const [showMore, setShowMore] = useState(false);
   const navigation = useNavigation();
+  const { userType, logout } = useAuth(); // Added logout here
+
+  // Obtener tabs visibles basado en el rol
+  const visibleTabs = getVisibleTabs(userType);
+  const mainTabs = visibleTabs.filter(tab => !tab.hidden);
+
+  // Función para manejar logout
+  const handleLogout = () => {
+    Alert.alert(
+      "Cerrar Sesión",
+      "¿Estás seguro que deseas cerrar sesión?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        {
+          text: "Cerrar Sesión",
+          style: "destructive",
+          onPress: logout
+        }
+      ]
+    );
+  };
 
   // TabBar personalizado
   const CustomTabBar = (props) => (
     <>
       <View style={stylesAnim.tabBar}>
         {props.state.routes.map((route, index) => {
-          // Oculta los tabs que no deben mostrarse
-          const item = TabArr.find(t => t.route === route.name);
-          if (item?.hidden) return null;
+          // Solo mostrar tabs que corresponden al rol del usuario
+          const item = mainTabs.find(t => t.route === route.name);
+          if (!item) return null;
+          
           return (
             <TabButton
               key={route.key}
@@ -146,44 +241,75 @@ const TabNavigator = () => {
             />
           );
         })}
-        {/* Botón Ver más al final del tabBar */}
-        <TouchableOpacity
-          style={{ alignItems: 'center', justifyContent: 'center', marginLeft: 8 }}
-          onPress={() => setShowMore(true)}
-          activeOpacity={0.7}
-        >
-          <View style={{ 
-            backgroundColor: '#fff', 
-            borderRadius: 20, 
-            width: 44, 
-            height: 44, 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            shadowColor: '#000', 
-            shadowOffset: { width: 0, height: 1 }, 
-            shadowOpacity: 0.10, 
-            shadowRadius: 2, 
-            elevation: 2 
-          }}>
-            <Ionicons name="ellipsis-vertical" size={28} color="#4A90E2" />
-          </View>
-          <Text style={{ color: '#4A90E2', fontWeight: 'bold', fontSize: 12, marginTop: 2 }}>
-            Ver más
-          </Text>
-        </TouchableOpacity>
+        {/* Botón Ver más solo para Administrador */}
+        {userType === 'Administrador' && (
+          <TouchableOpacity
+            style={{ alignItems: 'center', justifyContent: 'center', marginLeft: 8 }}
+            onPress={() => setShowMore(true)}
+            activeOpacity={0.7}
+          >
+            <View style={{ 
+              backgroundColor: '#fff', 
+              borderRadius: 20, 
+              width: 44, 
+              height: 44, 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              shadowColor: '#000', 
+              shadowOffset: { width: 0, height: 1 }, 
+              shadowOpacity: 0.10, 
+              shadowRadius: 2, 
+              elevation: 2 
+            }}>
+              <Ionicons name="ellipsis-vertical" size={28} color="#4A90E2" />
+            </View>
+            <Text style={{ color: '#4A90E2', fontWeight: 'bold', fontSize: 12, marginTop: 2 }}>
+              Ver más
+            </Text>
+          </TouchableOpacity>
+        )}
+        {/* Para Gestor y Empleado, mostrar botón de Cerrar Sesión directamente */}
+        {(userType === 'Gestor' || userType === 'Empleado') && (
+          <TouchableOpacity
+            style={{ alignItems: 'center', justifyContent: 'center', marginLeft: 8 }}
+            onPress={handleLogout}
+            activeOpacity={0.7}
+          >
+            <View style={{ 
+              backgroundColor: '#fff', 
+              borderRadius: 20, 
+              width: 44, 
+              height: 44, 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              shadowColor: '#000', 
+              shadowOffset: { width: 0, height: 1 }, 
+              shadowOpacity: 0.10, 
+              shadowRadius: 2, 
+              elevation: 2 
+            }}>
+              <Ionicons name="log-out" size={24} color="#E74C3C" />
+            </View>
+            <Text style={{ color: '#E74C3C', fontWeight: 'bold', fontSize: 12, marginTop: 2 }}>
+              Salir
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
-      <MorePopout
-        visible={showMore}
-        onClose={() => setShowMore(false)}
-        navigation={props.navigation}
-      />
+      {/* Popout solo para Administrador */}
+      {userType === 'Administrador' && (
+        <MorePopout
+          visible={showMore}
+          onClose={() => setShowMore(false)}
+          navigation={props.navigation}
+          userRole={userType}
+        />
+      )}
     </>
   );
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      {/* Header superior removido - ya no se muestra "Mi App" */}
-      
       {/* Tab Navigator con animación personalizada y tabBar custom */}
       <Tab.Navigator
         screenOptions={({ route }) => ({
@@ -204,8 +330,8 @@ const TabNavigator = () => {
         })}
         tabBar={CustomTabBar}
       >
-        {/* Definición de las pantallas del tab */}
-        {TabArr.map((item, idx) => (
+        {/* Definición de las pantallas del tab basadas en el rol */}
+        {visibleTabs.map((item, idx) => (
           <Tab.Screen
             key={item.route}
             name={item.route}
@@ -223,7 +349,7 @@ const TabNavigator = () => {
 
 export default TabNavigator;
 
-// Estilos para el popout (los estilos del header ya no son necesarios)
+// Estilos para el popout
 const styles = StyleSheet.create({
   // Estilos para el popout
   popoutOverlay: {
