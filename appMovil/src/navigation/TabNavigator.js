@@ -14,13 +14,15 @@ import MaintenanceScreen from '../screens/Maintenances/Maintenance';
 import ReservationScreen from '../screens/Reservations/Reservation';
 import ProfileScreen from '../screens/ProfileScreen';
 import Usuarios from '../screens/Usuarios/Usuarios';
+import VehiclesScreen from '../screens/Vehicles/Vehicles'; // Nueva pantalla de vehículos
 
 const Tab = createBottomTabNavigator();
 
 // Definición de los tabs con iconos y componentes
 const TabArr = [
   { route: 'Home', label: 'Inicio', icon: 'home', component: HomeScreen, roles: ['Administrador', 'Gestor', 'Empleado'] },
-  { route: 'Marcas', label: 'Marcas', icon: 'car-sport', component: Marcas, roles: ['Administrador'] },
+  { route: 'Vehicles', label: 'Vehículos', icon: 'car-sport', component: VehiclesScreen, roles: ['Administrador', 'Gestor'] }, // Nueva entrada para vehículos
+  { route: 'Marcas', label: 'Marcas', icon: 'business', component: Marcas, roles: ['Administrador'] },
   { route: 'Maintenance', label: 'Mantto.', icon: 'construct', component: MaintenanceScreen, title: 'Mantenimiento', roles: ['Administrador', 'Gestor'] },
   { route: 'Reservations', label: 'Reservas', icon: 'calendar', component: ReservationScreen, roles: ['Administrador', 'Empleado'] },
   { route: 'Profile', label: 'Perfil', icon: 'person', component: ProfileScreen, roles: ['Gestor', 'Empleado'] }, // Visible para Gestor y Empleado
