@@ -1,10 +1,10 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import TabNavigator from './TabNavigator';
+import TabNavigator from './TabNavigator'; // Importa el nuevo TabNavigator mejorado
 
 // Importar las pantallas modales/stack
 import AddMaintenanceScreen from '../screens/Maintenances/AddMaintenance';
-//import AddReservationScreen from '../screens/Reservations/AddReservation'; // Nueva importación
+//import AddReservationScreen from '../screens/Reservations/AddReservation';
 
 const Stack = createNativeStackNavigator();
 
@@ -31,8 +31,19 @@ const StackNavigator = () => {
           gestureEnabled: true,
         }}
       />
-
       
+      {/* Puedes agregar más pantallas aquí */}
+      {/*
+      <Stack.Screen
+        name="AddReservation"
+        component={AddReservationScreen}
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+          gestureEnabled: true,
+        }}
+      />
+      */}
     </Stack.Navigator>
   );
 };
